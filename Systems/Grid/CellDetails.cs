@@ -14,14 +14,88 @@ namespace Venwin.Grid
     [Serializable]
     public class CellDetails
     {
-        private Dictionary<string, object> detailsLookup;
-        [SerializeField] List<MonoBehaviour> monoBehaviourDetails;
-        [SerializeField] List<ScriptableObject> scriptableObjectDetails;
+        [SerializeField] List<MonoBehaviour> monoBehaviourDetails = new();
+        [SerializeField] List<ScriptableObject> scriptableObjectDetails = new();
 
-        public CellDetails()
+        // This dictionary is used to look up specific types of details.
+        private Dictionary<string, object> detailsLookup = new();
+
+        private bool gridDetailsInitialized = false;
+        private List<IGridDetail> gridDetails = new();
+        
+        private Dictionary<string, object> DetailsLookup
         {
-            detailsLookup = new Dictionary<string, object>();
+            get
+            {
+                if(!gridDetailsInitialized)
+                {
+                    InitializeGridDetailsList();
+                }
+
+                return detailsLookup;
+            }
+            set
+            {
+                gridDetailsInitialized = true;
+                detailsLookup = value;
+            }
         }
+
+        // This list is used for iterating through all the details that may have common triggers like Update(), or being placed on a Grid()
+        public List<IGridDetail> GridDetails
+        {
+            get
+            {
+                if(!gridDetailsInitialized)
+                {
+                    InitializeGridDetailsList();
+                }
+
+                return gridDetails;
+            }
+            private set
+            {
+                gridDetails = value;
+                gridDetailsInitialized = true;
+            }
+        }
+
+        public void InitializeGridDetailsList()
+        {
+            foreach (var monoBehaviour in monoBehaviourDetails)
+            {
+                if (monoBehaviour is IGridDetail iDetail)
+                {
+                    gridDetails.Add(iDetail);
+                }
+                else
+                {
+                    Debug.LogWarning($"A monobehavior does not implement the IDetail interface, it will not be found in IGridDetail lookups. " +
+                        $"Type: {monoBehaviour.GetType().Name}");
+                }
+
+                AddDetail(monoBehaviour);
+            }
+
+            foreach (var scriptableObject in scriptableObjectDetails)
+            {
+                if (scriptableObject is IGridDetail iDetail)
+                {
+                    gridDetails.Add(iDetail);
+                }
+                else
+                {
+                    Debug.LogWarning($"A scriptable object does not implement the IDetail interface, it will not be found in IGridDetail lookups. " +
+                        $"Type: {scriptableObject.GetType().Name}");
+                }
+
+                AddDetail(scriptableObject);
+            }
+
+            gridDetailsInitialized = true;
+        }
+
+
 
         public void AddDetail(object detail)
         {
@@ -68,24 +142,75 @@ namespace Venwin.Grid
             foundDetail = null;
             string typeName = typeof(T).Name;
 
-            if (detailsLookup.TryGetValue(typeName, out object detail))
+            if (DetailsLookup.TryGetValue(typeName, out object detail))
             {
                 try
                 {
                     foundDetail = (T)detail;
                     return true;
                 }
-                catch (InvalidCastException)
+                catch (InvalidCastException) // This shouldn't happen
                 {
                     Debug.LogError($"Attempted to retrieve a cell detail using the generic type `{typeof(T).Name}` " +
                         $"but the object stored in the dictionary was not an object of that type.");
 
                     return false;
                 }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Unknown error occurred when trying to get detail: {e.GetType().Name} - {e.Message}");
+                    return false;
+                }
             }
             else
             {
                 return false;
+            }
+        }
+
+        public void AssignCellToMonobehaviorDetails(GridCell gridCell)
+        {
+            foreach (var gridDetail in monoBehaviourDetails)
+            {
+                if (gridDetail is IGridDetailMonobehavior monoDetail)
+                {
+                    monoDetail.AssignedGridCell = gridCell;
+                }
+            }
+        }
+
+        public void UnassignCellOnMonobehaviorDetails()
+        {
+            foreach (var gridDetail in monoBehaviourDetails)
+            {
+                if (gridDetail is IGridDetailMonobehavior monoDetail)
+                {
+                    monoDetail.AssignedGridCell = null;
+                }
+            }
+        }
+
+        public void TriggerDetailsOnPlace(GridObject gridObject)
+        {
+            foreach(var gridDetail in GridDetails)
+            {
+                gridDetail.OnOwningGridObjectPlaced(gridObject);
+            }
+        }
+
+        public void TriggerDetailsUpdates()
+        {
+            foreach (var gridDetail in GridDetails)
+            {
+                gridDetail.OnOwningGridObjectUpdate();
+            }
+        }
+
+        public void TriggerDetailsOnGridRemoval(GridObject gridObject)
+        {
+            foreach (var gridDetail in GridDetails)
+            {
+                gridDetail.OnOwningGridObjectRemoved(gridObject);
             }
         }
     }

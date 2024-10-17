@@ -1,14 +1,21 @@
-using NUnit.Framework;
-using System;
 using UnityEngine;
+
+#nullable enable
 
 namespace Venwin.Grid
 {
     public class GridObject : MonoBehaviour
     {
+        #region Declarations
+
         [SerializeField] protected GridDimensions Dimensions;
         [SerializeField] protected GridObjectCellDetails cellDetails;
 
+        #endregion Declarations
+
+        #region Properties
+
+        [field: SerializeField, HideInInspector]
         public OriginPosition ObjectOriginPosition { get; protected set; }
 
         public GridObjectCellDetails GridObjectCellDetails
@@ -17,9 +24,15 @@ namespace Venwin.Grid
             protected set => cellDetails = value;
         }
 
+        [HideInInspector]
+        public GridCell? StartingCell { get; set; }
+
+        #endregion Properties
+
         public void Awake()
         {
-            cellDetails = new GridObjectCellDetails(this);
+            cellDetails ??= new GridObjectCellDetails();
+            cellDetails.Initialize(this);
         }
 
         // Needed so that GridObject's can't be manipulated but still avaiable in serializer.
@@ -35,36 +48,24 @@ namespace Venwin.Grid
         /// <summary>
         /// Called when a <see cref="GridObject"/> is placed on the grid.
         /// </summary>
-        /// <param name="globalGridPosition">The position that the grid was instantiated at (ie the origin point's cell position)</param>
-        public virtual void OnPlaced(Vector3 globalGridPosition)
+        public virtual void OnPlaced()
         {
-
+            cellDetails.OnPlaced();
         }
 
-        public Quaternion GetQuaternionBasedOnOriginPosition()
+        public virtual void OnRemoved()
         {
-            return ObjectOriginPosition switch
-            {
-                OriginPosition.BottomLeft => Quaternion.identity,
-                OriginPosition.TopLeft => Quaternion.Euler(0, 90f, 0),
-                OriginPosition.TopRight => Quaternion.Euler(0, 180f, 0),
-                OriginPosition.BottomRight => Quaternion.Euler(0, 270f, 0),
-                _ => Quaternion.identity,
-            };
+            cellDetails.OnRemoved();
         }
 
+        /// <summary>
+        /// Rotates the <see cref="GridObject"/> clockwise 90 degrees.
+        /// </summary>
         public virtual void RotateObject()
         {
             transform.Rotate(0f, 90f, 0f);
 
-            ObjectOriginPosition = ObjectOriginPosition switch
-            {
-                OriginPosition.BottomLeft => OriginPosition.TopLeft,
-                OriginPosition.TopLeft => OriginPosition.TopRight,
-                OriginPosition.TopRight => OriginPosition.BottomRight,
-                OriginPosition.BottomRight => OriginPosition.BottomLeft,
-                _ => throw new NotImplementedException($"Origin position could not be rotated due to unknown state: {ObjectOriginPosition}"),
-            };
+            ObjectOriginPosition = ObjectOriginPosition.RotateClockwise();
         }
     }
 }

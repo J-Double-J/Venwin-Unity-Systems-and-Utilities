@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,26 +13,47 @@ namespace Venwin.Grid
     [Serializable]
     public class GridObjectCellDetails
     {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private GridObject owningGridObject;
         private CellDetails[,] cellDetails;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
         [Tooltip("Starts at bottom left of grid, goes rightward then up. So in a 2x3 example, it goes (0,0) -> (0, 1) -> (0,2) -> (1,0) -> (1,1)...")]
         [SerializeField] private List<CellDetails> details = new();
 
-        // If its 2x1, we need a two storage
-        // 3x3 need 9 storage of details
-        public GridObjectCellDetails(GridObject gridObject)
+        /// <summary>
+        /// Gets a list of every Cell Detail in this <see cref="GridObject"/>.
+        /// </summary>
+        public List<CellDetails> AllCellDetails { get { return details; } }
+
+        /// <summary>
+        /// Initializes the <see cref="GridObjectCellDetails"/> using a <see cref="GridObject"/>.
+        /// </summary>
+        /// <remarks>
+        /// Because <see cref="GridObjectCellDetails"/> is not a <see cref="MonoBehaviour"/> call this method to correctly set up the object at runtime.
+        /// </remarks>
+        /// <param name="gridObject">The <see cref="GridObject"/> that contains relevant information.</param>
+        public void Initialize(GridObject gridObject)
         {
             owningGridObject = gridObject;
-            
             GridDimensions gridDimensions = gridObject.GetDimensions();
-            cellDetails = new CellDetails[gridDimensions.X, gridDimensions.Z];
 
-            for (int col = 0; col < gridDimensions.X; col++)
+            cellDetails ??= new CellDetails[gridDimensions.X, gridDimensions.Z];
+            details ??= new();
+
+            bool populateDetailsFromList = details.Count != 0;
+            if (populateDetailsFromList && details.Count != gridDimensions.X * gridDimensions.Z)
             {
-                for (int row = 0; row < gridDimensions.Z; row++)
+                populateDetailsFromList = false;
+                Debug.LogError($"The List of CellDetails populated in the list is not equal to the dimensions of the GridObject. " +
+                    $"In this scenario we are unsure of what should occur to the missing cells. None of the cells will be populated as a result.");
+            }
+
+            for (int row = 0; row < gridDimensions.Z; row++)
+            {
+                for (int col = 0; col < gridDimensions.X; col++)
                 {
-                    cellDetails[col, row] = new CellDetails();
+                    cellDetails[col, row] = populateDetailsFromList ? details[col + row] : new CellDetails();
                 }
             }
         }
@@ -51,7 +71,7 @@ namespace Venwin.Grid
         /// <returns>The CellDetails that exist at that coordinate.</returns>
         public CellDetails? GetDetailFromGridObjectWithLocalCoordinate(Vector3Int localObjectCoordinates)
         {
-            if (!ValidateCoordinatesAreInGrid(localObjectCoordinates))
+            if (!ValidateCoordinatesAreInLocalGrid(localObjectCoordinates))
             {
                 return null;
             }
@@ -87,6 +107,24 @@ namespace Venwin.Grid
             Action<GridCell<T>, T, Vector3Int> assignCellDetailsAction = (cell, gridObject, localCoords) => 
             {
                 cell.CellDetails = cellDetails[localCoords.x, localCoords.z];
+                cellDetails[localCoords.x, localCoords.z].AssignCellToMonobehaviorDetails(cell);
+            };
+
+            grid.ExecuteActionOnGridCellsBasedOnObjectAndOrientation(assignCellDetailsAction, (T)owningGridObject, startingCellCoordinate);
+        }
+
+        /// <summary>
+        /// Assigns the <see cref="CellDetails"/> to the correct cells 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="startingCellCoordinate"></param>
+        /// <param name="grid"></param>
+        public void UnassignGridDetailsToCells<T>(Vector3Int startingCellCoordinate, Grid<T> grid) where T : GridObject
+        {
+            Action<GridCell<T>, T, Vector3Int> assignCellDetailsAction = (cell, _, localCoords) =>
+            {
+                cell.CellDetails = cellDetails[localCoords.x, localCoords.z];
+                cellDetails[localCoords.x, localCoords.z].UnassignCellOnMonobehaviorDetails();
             };
 
             grid.ExecuteActionOnGridCellsBasedOnObjectAndOrientation(assignCellDetailsAction, (T)owningGridObject, startingCellCoordinate);
@@ -104,7 +142,13 @@ namespace Venwin.Grid
             return cellDetails.TryGetDetail(out cellDetail);
         }
 
-        private bool ValidateCoordinatesAreInGrid(Vector3Int coordinates)
+        /// <summary>
+        /// Checks that given coordinates are on the given <see cref="GridObject"/>.
+        /// </summary>
+        /// <remarks>Since <see cref="GridObject"/> have dimensions they are considered local grids.</remarks>
+        /// <param name="coordinates">Coordinates on the <see cref="GridObject"/></param>
+        /// <returns>True if the <paramref name="coordinates"/> fit on the <see cref="GridObject"/>.</returns>
+        private bool ValidateCoordinatesAreInLocalGrid(Vector3Int coordinates)
         {
             GridDimensions dimensions = owningGridObject.GetDimensions();
             if (coordinates.x > dimensions.X - 1|| coordinates.x < 0 || coordinates.z > dimensions.Z - 1 || coordinates.z < 0)
@@ -114,6 +158,15 @@ namespace Venwin.Grid
 
             return true;
         }
+
+        public void OnPlaced()
+        {
+            AllCellDetails.ForEach(cell => cell.TriggerDetailsOnPlace(owningGridObject));
+        }
+
+        public void OnRemoved()
+        {
+            AllCellDetails.ForEach(cell => cell.TriggerDetailsOnGridRemoval(owningGridObject));
+        }
     }
 }
-

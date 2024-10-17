@@ -12,7 +12,7 @@ namespace Venwin.Utilities
         /// will scale the child accordingly. This is best used when a child has a scaled parent that won't rescale again.
         /// </remarks>
         /// <param name="child">Child transform to have it ignore its parent's scale.</param>
-        public static void IgnoreParentScale(Transform child)
+        public static void IgnoreParentScale(this Transform child)
         {
             child.localScale = new Vector3(child.localScale.x / child.parent.localScale.x,
                 child.localScale.y / child.parent.localScale.y,
