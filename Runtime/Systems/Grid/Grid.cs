@@ -67,7 +67,11 @@ namespace Venwin.Grid
             RowCount = Mathf.FloorToInt(ScaledBounds.z / CellSize);
 
             CreateGridCells();
-            ConfigureGridCellsForNavigation();
+
+            if (GridIsNavigatable)
+            {
+                ConfigureGridCellsForNavigation();
+            }
         }
 
 
@@ -82,7 +86,10 @@ namespace Venwin.Grid
         /// <summary>
         /// Configures the cells in the grid to be ready for navigation.
         /// </summary>
-        /// <remarks>Implementors should check if <see cref="GridIsNavigatable"/> is set to true, because this may change behavior of the grid.</remarks>
+        /// <remarks>
+        /// This method is only called if GridIsNavigatable is set to true.<br/>
+        /// This is where you can configure special navigation rules between grid cells.
+        /// </remarks>
         protected abstract void ConfigureGridCellsForNavigation();
 
         #endregion
