@@ -1,3 +1,8 @@
+## [Version 1.1.1] - 2024-10-20
+
+### Fixed
+- Ambiguity bug for Debug between System and Unity.
+
 ## [Version 1.1.0] - 2024-10-20
 
 ### Added
