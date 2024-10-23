@@ -26,7 +26,7 @@ namespace Venwin.Grid.Pathfinding
 
             for(int i = 0; i < path.Count; i++)
             {
-                lineRenderer.SetPosition(i, (path[i].CenterOfCellWorldSpace() + new Vector3(0, heightOffset, 0)));
+                lineRenderer.SetPosition(i, (path[i].CenterOfCellWorldSpace + new Vector3(0, heightOffset, 0)));
             }
         }
     }

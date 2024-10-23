@@ -102,9 +102,10 @@ namespace Venwin.Grid
         /// <typeparam name="T"></typeparam>
         /// <param name="startingCellCoordinate"></param>
         /// <param name="grid"></param>
-        public void AssignGridDetailsToCells<T>(Vector3Int startingCellCoordinate, Grid<T> grid) where T : GridObject
+        public void AssignGridDetailsToCells<GridCellT, T>(Vector3Int startingCellCoordinate, Grid<GridCellT, T> grid) where GridCellT : GridCell<T>
+                                                                                                                       where T : GridObject
         {
-            Action<GridCell<T>, T, Vector3Int> assignCellDetailsAction = (cell, gridObject, localCoords) => 
+            Action<GridCellT, T, Vector3Int> assignCellDetailsAction = (cell, gridObject, localCoords) => 
             {
                 cell.CellDetails = cellDetails[localCoords.x, localCoords.z];
                 cellDetails[localCoords.x, localCoords.z].AssignCellToMonobehaviorDetails(cell);
@@ -119,9 +120,10 @@ namespace Venwin.Grid
         /// <typeparam name="T"></typeparam>
         /// <param name="startingCellCoordinate"></param>
         /// <param name="grid"></param>
-        public void UnassignGridDetailsToCells<T>(Vector3Int startingCellCoordinate, Grid<T> grid) where T : GridObject
+        public void UnassignGridDetailsToCells<GridCellT, T>(Vector3Int startingCellCoordinate, Grid<GridCellT, T> grid) where GridCellT : GridCell<T>
+                                                                                                                         where T : GridObject
         {
-            Action<GridCell<T>, T, Vector3Int> assignCellDetailsAction = (cell, _, localCoords) =>
+            Action<GridCellT, T, Vector3Int> assignCellDetailsAction = (cell, _, localCoords) =>
             {
                 cell.CellDetails = cellDetails[localCoords.x, localCoords.z];
                 cellDetails[localCoords.x, localCoords.z].UnassignCellOnMonobehaviorDetails();

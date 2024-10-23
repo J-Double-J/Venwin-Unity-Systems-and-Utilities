@@ -21,7 +21,6 @@ namespace Venwin.Grid
         public SquareGrid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
             : base(transform, mesh, cellSize, gridLayer)
         {
-
         }
 
         /// <inheritdoc/>

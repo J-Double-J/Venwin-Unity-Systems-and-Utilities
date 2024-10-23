@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using Venwin.Utilities;
 
 #nullable enable
 
@@ -31,10 +32,18 @@ namespace Venwin.Grid
         public Vector3 WorldSpaceCoordinates { get; protected set; }
 
         /// <summary>
+        /// Gets the center of the Grid Cell in World Space.
+        /// </summary>
+        public Vector3 CenterOfCellWorldSpace { get; protected set; }
+
+        /// <summary>
         /// Gets or sets the CellDetails assigned to this cell.
         /// </summary>
         public CellDetails? CellDetails { get; set; } = null;
 
+        /// <summary>
+        /// Gets the grid that this cell is on.
+        /// </summary>
         public Grid OwningGrid { get; }
 
         #region Navigation Properties
@@ -56,11 +65,7 @@ namespace Venwin.Grid
             CellSize = cellSize;
             GridCoordinates = coordinates;
             WorldSpaceCoordinates = worldSpaceCoordinates;
-        }
-
-        public Vector3 CenterOfCellWorldSpace()
-        {
-            return new Vector3((float)(WorldSpaceCoordinates.x + CellSize / 2.0), 0, (float)(WorldSpaceCoordinates.z + CellSize / 2.0));
+            CenterOfCellWorldSpace = new Vector3((float)(WorldSpaceCoordinates.x + CellSize / 2.0), 0, (float)(WorldSpaceCoordinates.z + CellSize / 2.0));
         }
 
         #region Navigation
@@ -115,6 +120,74 @@ namespace Venwin.Grid
         public virtual int GetCostToEnter(GridCell leavingCell)
         {
             return CostToEnter;
+        }
+
+        #endregion
+
+        #region Cell Detection
+
+        /// <summary>
+        /// Grabs all root GameObjects found within a cell in a given layer mask. 
+        /// </summary>
+        /// <remarks>
+        /// Ignores trigger colliders.
+        /// </remarks>
+        /// <param name="layerMask">Layer Mask to search on.</param>
+        /// <returns>A hashset of unique root game objects.</returns>
+        public HashSet<GameObject> CheckForUniqueRootObjectsWithinCellBounds(LayerMask layerMask)
+        {
+            // We want to detect only above the grid cell, so we add to the y-axis of the center so that the bottom of the drawn box is on top of the cell.
+            Collider[] hitColliders = Physics.OverlapBox(CenterOfCellWorldSpace + new Vector3(0, CellSize / 2f, 0),
+                                                         new Vector3(CellSize / 2f, CellSize / 2f, CellSize / 2f),
+                                                         Quaternion.identity,
+                                                         layerMask,
+                                                         QueryTriggerInteraction.Ignore);
+
+            HashSet<GameObject> uniqueObjects = new();
+
+            foreach(Collider collider in hitColliders)
+            {
+                GameObject rootObject = collider.transform.root.gameObject;
+                uniqueObjects.Add(rootObject);
+            }
+
+            return uniqueObjects;
+        }
+
+        /// <summary>
+        /// Checks for GameObjects in its cell and returns all game objects in the layer that have a specified component.
+        /// </summary>
+        /// <remarks>
+        /// Ignores trigger colliders.<br/>
+        /// If one root game object contains multiple of the same component, it will <strong>only</strong> return the first one.
+        /// </remarks>
+        /// <typeparam name="T">Type of component to search for.</typeparam>
+        /// <param name="layerMask">Layer Mask to look within.</param>
+        /// <returns>A hashset of components that each have a unique root game object.</returns>
+        public HashSet<T> CheckForUniqueRootObjectsWithinCellBounds<T>(LayerMask layerMask) where T : Component
+        {
+            // We want to detect only above the grid cell, so we add to the y-axis of the center so that the bottom of the drawn box is on top of the cell.
+            Collider[] hitColliders = Physics.OverlapBox(CenterOfCellWorldSpace + new Vector3(0, CellSize / 2f, 0),
+                                                         new Vector3(CellSize / 2f, CellSize / 2f, CellSize / 2f),
+                                                         Quaternion.identity,
+                                                         layerMask,
+                                                         QueryTriggerInteraction.Ignore);
+
+            HashSet<T> uniqueObjects = new();
+
+            foreach (Collider collider in hitColliders)
+            {
+                GameObject rootObject = collider.transform.root.gameObject;
+
+                T? searchedForObject = ParentChildUtilities.GetComponentInParentOrChildren<T>(rootObject);
+                
+                if(searchedForObject != null)
+                {
+                    uniqueObjects.Add(searchedForObject);
+                }
+            }
+
+            return uniqueObjects;
         }
 
         #endregion

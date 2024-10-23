@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Venwin.Grid
@@ -9,10 +10,15 @@ namespace Venwin.Grid
     /// Base class assumes square grid cells at the moment, but this will likely change.<br/>
     /// Implementors should use the Square Grid still to prevent breaking code changes in future.
     /// </remarks>
-    public class SquareGrid<T> : Grid<T> where T : GridObject
+    public class SquareGrid<GridCellT, T> : Grid<GridCellT, T> where GridCellT : GridCell<T> where T : GridObject
     {
         public SquareGrid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
             : base(transform, mesh, cellSize, gridLayer)
+        {
+        }
+
+        public SquareGrid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT> cellCreationCallback)
+            : base(transform, mesh, cellSize, gridLayer, cellCreationCallback)
         {
         }
 
@@ -63,14 +69,21 @@ namespace Venwin.Grid
         /// <inheritdoc/>
         protected override void CreateGridCells()
         {
-            GridCells = new GridCell<T>[ColumnCount, RowCount];
+            GridCells = new GridCell[ColumnCount, RowCount];
 
             for (int col = 0; col < ColumnCount; col++)
             {
                 for (int row = 0; row < RowCount; row++)
                 {
                     Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, 0, row * CellSize + BottomLeftCorner.z);
-                    GridCells[col, row] = new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    if (CellCreationCallback == null)
+                    {
+                        GridCells[col, row] = new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    }
+                    else
+                    {
+                        GridCells[col, row] = CellCreationCallback(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    }
                 }
             }
         }

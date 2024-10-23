@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+#nullable enable
+
 namespace Venwin.Utilities
 {
     public static class ParentChildUtilities
@@ -125,7 +127,7 @@ namespace Venwin.Utilities
         /// Gets all the children
         /// </summary>
         /// <param name="parent"></param>
-        public static List<T> FindChildrenWithComponent<T>(Transform parent, List<T> componentsFound = null) where T : Component
+        public static List<T> FindChildrenWithComponent<T>(Transform parent, List<T>? componentsFound = null) where T : Component
         {
             if (componentsFound == null)
             {
@@ -144,6 +146,25 @@ namespace Venwin.Utilities
             }
 
             return componentsFound;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="rootGameObject">The starting object to search in that contains children.</param>
+        /// <returns></returns>
+        public static T? GetComponentInParentOrChildren<T>(GameObject rootGameObject) where T : Component
+        {
+            T component;
+
+            component = rootGameObject.GetComponent<T>();
+
+            if(component != null) { return component; }
+
+            component = rootGameObject.GetComponentInChildren<T>();
+
+            return component;
         }
 
         /// <summary>

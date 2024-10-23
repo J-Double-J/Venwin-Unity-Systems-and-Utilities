@@ -41,6 +41,21 @@ namespace Venwin.Grid
         /// </summary>
         protected Vector3 BottomLeftCorner { get; set; }
 
+        /// <summary>
+        /// Function that is called to create each GridCell if specified. Allows creation of custom <see cref="GridCell"/>
+        /// </summary>
+        protected Func<Grid, int, Vector3Int, Vector3, GridCell>? CellCreationCallback { get; set; } = null;
+
+        /// <summary>
+        /// Enables drawing debug lines in the grid.
+        /// </summary>
+        public bool DrawDebug { get; set; } = true;
+
+        /// <summary>
+        /// Enables printing debugging messages to the console.
+        /// </summary>
+        public bool PrintDebug { get; set; } = false;
+
         #endregion
 
         #region Events
@@ -51,6 +66,19 @@ namespace Venwin.Grid
 
 
         public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
+            : this(transform, mesh, cellSize, gridLayer, null)
+        {
+        }
+
+        /// <summary>
+        /// Grid with a callback that allows custom cell creation.
+        /// </summary>
+        /// <param name="transform">The transform this grid is on.</param>
+        /// <param name="mesh">The bounding mesh for the grid. Used to determine how far to draw grid.</param>
+        /// <param name="cellSize">The size of each individaul cell.</param>
+        /// <param name="gridLayer">Layer the grid resides on.</param>
+        /// <param name="callback">Function that takes in parameters for a a grid cell to create custom cells.</param>
+        public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback)
         {
             Transform = transform;
             GameObjectMesh = mesh;
@@ -65,6 +93,8 @@ namespace Venwin.Grid
 
             ColumnCount = Mathf.FloorToInt(ScaledBounds.x / CellSize);
             RowCount = Mathf.FloorToInt(ScaledBounds.z / CellSize);
+
+            CellCreationCallback = callback;
 
             CreateGridCells();
 
@@ -500,6 +530,22 @@ namespace Venwin.Grid
                 Vector3Int cellCoords = GetCellCoordinatesFromWorldSpace(clickInfo.Point);
                 Debug.Log(cellCoords);
                 Debug.Log(GridCells[cellCoords.x, cellCoords.z].IsAvailable);
+            }
+        }
+
+        /// <summary>
+        /// Draws and prints debugging tools for grids if enabled.
+        /// </summary>
+        public void DebugGrid()
+        {
+            if (DrawDebug)
+            {
+                DebugDrawGridLines();
+            }
+
+            if (PrintDebug)
+            {
+                DebugCornerCoordinates();
             }
         }
 

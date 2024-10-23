@@ -6,32 +6,59 @@ using UnityEngine;
 
 namespace Venwin.Grid
 {
-    public class Grid<T> : Grid where T : GridObject
+    public class Grid<GridCellT, T> : Grid where GridCellT : GridCell<T>
+                                           where T : GridObject
     {
         /// <summary>
         /// A casted version of <see cref="GridCells"/>.
         /// </summary>
-        public GridCell<T>[,] GenericGridCells { get; protected set; }
+        public GridCellT[,] GenericGridCells { get; protected set; }
 
-        // Runtime fields
-        //public GridCell<T>[,] GridCells { get; private set; }
-
+        /// <summary>
+        /// Grid constructor that creates <see cref="GridCell{T}"/>s
+        /// </summary>
+        /// <param name="transform">The game object it is attached to.</param>
+        /// <param name="mesh">The mesh that the grid will use to calculate where to place the cells at.</param>
+        /// <param name="cellSize">How large each cell will be.</param>
+        /// <param name="gridLayer">The layer the mask is on.</param>
         public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
-            : base(transform, mesh, cellSize, gridLayer)
+            : this(transform, mesh, cellSize, gridLayer, null)
         {
-            DebugDrawGridLines();
-            DebugCornerCoordinates();
+            DebugGrid();
 
-            GenericGridCells = (GridCell<T>[,])GridCells;
+            CastGridCellsToGeneric();
         }
 
         /// <summary>
         /// Creates a grid from another grid. Allows duplicating grid features.
         /// </summary>
-        /// <param name="grid">Grid to copy from</param>
-        public Grid(Grid<T> grid)
+        /// <param name="grid">Grid to copy from.</param>
+        public Grid(Grid<GridCellT, T> grid)
             : this(grid.Transform, grid.GameObjectMesh, grid.CellSize, grid.GridLayer)
         {
+            if (grid.CellCreationCallback != null)
+            {
+                CellCreationCallback = grid.CellCreationCallback;
+            }
+        }
+
+        /// <summary>
+        /// Grid constructor that creates <typeparamref name="GridCellT"/>s with the <paramref name="cellCreationCallback"/>.
+        /// </summary>
+        /// <param name="transform">The game object it is attached to.</param>
+        /// <param name="mesh">The mesh that the grid will use to calculate where to place the cells at.</param>
+        /// <param name="cellSize">How large each cell will be.</param>
+        /// <param name="gridLayer">The layer the mask is on.</param>
+        /// <param name="cellCreationCallback">
+        /// Function that must take this grid, cell size, grid coordinate, and world space coordinate.<br/>
+        /// Function returns a GridCell for the grid to use.
+        /// </param>
+        public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT>? cellCreationCallback)
+            : base(transform, mesh, cellSize, gridLayer, cellCreationCallback)
+        {
+            DebugGrid();
+
+            CastGridCellsToGeneric();
         }
 
         /// <summary>
@@ -39,7 +66,7 @@ namespace Venwin.Grid
         /// </summary>
         /// <param name="worldSpacePoint">Point in world space that is on the grid that can be mapped to the grid coordinate.</param>
         /// <returns>The <see cref="GridCell{T}"/> in that worldspace, else null if the <paramref name="worldSpacePoint"/> is not on the grid.</returns>
-        public new GridCell<T>? GetCellFromWorldSpace(Vector3 worldSpacePoint)
+        public new GridCellT? GetCellFromWorldSpace(Vector3 worldSpacePoint)
         {
             Vector3Int cellCoordinates = GetCellCoordinatesFromWorldSpace(worldSpacePoint);
 
@@ -53,7 +80,7 @@ namespace Venwin.Grid
         /// </summary>
         /// <param name="gridCoordinate">A coordinate that is on the grid.</param>
         /// <returns>A grid cell if the coordinate was valid.</returns>
-        public new GridCell<T>? GetCellFromGridCoordiantes(Vector3Int gridCoordinate)
+        public new GridCellT? GetCellFromGridCoordiantes(Vector3Int gridCoordinate)
         {
             if (!IsValidCellCoordinate(gridCoordinate))
             {
@@ -137,7 +164,7 @@ namespace Venwin.Grid
 
             instantiatedGridObject.StartingCell = GetCellFromGridCoordiantes(startingCellCoordinate);
 
-            Action<GridCell<T>, T, Vector3Int> addAction = (GridCell<T> gridCell, T gridObject1, Vector3Int _) => { gridCell.AddObject(gridObject1); };
+            Action<GridCellT, T, Vector3Int> addAction = (GridCellT gridCell, T gridObject1, Vector3Int _) => { gridCell.AddObject(gridObject1); };
             ExecuteActionOnGridCellsBasedOnObjectAndOrientation(addAction, instantiatedGridObject, startingCellCoordinate);
 
             instantiatedGridObject.GridObjectCellDetails.AssignGridDetailsToCells(startingCellCoordinate, this);
@@ -180,7 +207,7 @@ namespace Venwin.Grid
 
                 Vector3Int startingCellCoordinate = targetGameObject.StartingCell.GridCoordinates;
 
-                Action<GridCell<T>, T, Vector3Int> verifyObjectIsOccupyingAllCells = (gridCell, gridObject, _) => {
+                Action<GridCellT, T, Vector3Int> verifyObjectIsOccupyingAllCells = (gridCell, gridObject, _) => {
                     if (gridCell.CurrentObject != gridObject) { gameObjectIsOccupyingAllCells = false; }
                 };
                 ExecuteActionOnGridCellsBasedOnObjectAndOrientation(verifyObjectIsOccupyingAllCells, targetGameObject, startingCellCoordinate);
@@ -195,7 +222,7 @@ namespace Venwin.Grid
 
                 targetGameObject.GridObjectCellDetails.UnassignGridDetailsToCells(startingCellCoordinate, this);
 
-                Action<GridCell<T>, T, Vector3Int> removeObjectFromGrid = (gridCell, gridObject, _) => { gridCell.RemoveCurrentObject(); };
+                Action<GridCellT, T, Vector3Int> removeObjectFromGrid = (gridCell, gridObject, _) => { gridCell.RemoveCurrentObject(); };
                 ExecuteActionOnGridCellsBasedOnObjectAndOrientation(removeObjectFromGrid, targetGameObject, startingCellCoordinate);
                 
                 targetGameObject.StartingCell = null;
@@ -236,7 +263,7 @@ namespace Venwin.Grid
         /// <param name="gridObject">The <see cref="GridObject"/> that is relevant for orientation and dimensions.</param>
         /// <param name="startingCell">The starting cell for the operation.</param>
         /// <exception cref="Exception">Can throw any exception that could occur as a result of passed in <paramref name="action"/>.</exception>
-        public void ExecuteActionOnGridCellsBasedOnObjectAndOrientation(Action<GridCell<T>, T, Vector3Int> action,
+        public void ExecuteActionOnGridCellsBasedOnObjectAndOrientation(Action<GridCellT, T, Vector3Int> action,
                                                                             T gridObject,
                                                                             Vector3Int startingCell)
         {
@@ -250,7 +277,7 @@ namespace Venwin.Grid
                         {
                             for (int row = 0; row < dimensions.Z; row++)
                             {
-                                GridCell<T> cell = GenericGridCells[startingCell.x + col, startingCell.z + row];
+                                GridCellT cell = GenericGridCells[startingCell.x + col, startingCell.z + row];
 
                                 // Executes action
                                 action(cell, gridObject, new Vector3Int(col, 0, row));
@@ -263,7 +290,7 @@ namespace Venwin.Grid
                         {
                             for (int row = 0; row < dimensions.Z; row++)
                             {
-                                GridCell<T> cell = GenericGridCells[startingCell.x + row, startingCell.z - col];
+                                GridCellT cell = GenericGridCells[startingCell.x + row, startingCell.z - col];
 
                                 action(cell, gridObject, new Vector3Int(col, 0, row));
                             }
@@ -275,7 +302,7 @@ namespace Venwin.Grid
                         {
                             for (int row = 0; row < dimensions.Z; row++)
                             {
-                                GridCell<T> cell = GenericGridCells[startingCell.x - col, startingCell.z - row];
+                                GridCellT cell = GenericGridCells[startingCell.x - col, startingCell.z - row];
 
                                 action(cell, gridObject, new Vector3Int(col, 0, row));
                             }
@@ -287,7 +314,7 @@ namespace Venwin.Grid
                         {
                             for (int row = 0; row < dimensions.Z; row++)
                             {
-                                GridCell<T> cell = GenericGridCells[startingCell.x - row, startingCell.z + col];
+                                GridCellT cell = GenericGridCells[startingCell.x - row, startingCell.z + col];
 
                                 action(cell, gridObject, new Vector3Int(col, 0, row));
                             }
@@ -307,14 +334,15 @@ namespace Venwin.Grid
         /// </summary>
         protected override void CreateGridCells()
         {
-            GridCells = new GridCell<T>[ColumnCount, RowCount];
+            GridCells = new GridCellT[ColumnCount, RowCount];
 
             for (int col = 0; col < ColumnCount; col++)
             {
                 for (int row = 0; row < RowCount; row++)
                 {
                     Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, 0, row * CellSize + BottomLeftCorner.z);
-                    GridCells[col, row] = new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    GridCells[col, row] =  CellCreationCallback == null ? new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates)
+                                                                        : CellCreationCallback(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
                 }
             }
         }
@@ -331,6 +359,22 @@ namespace Venwin.Grid
                     }
                     
                     GridCells[col, row].IsNavigatable = GridIsNavigatable;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Goes through each entry in <see cref="Grid.GridCells"/> and casts so them for easy look up access in <see cref="GenericGridCells"/>.
+        /// </summary>
+        protected void CastGridCellsToGeneric()
+        {
+            GenericGridCells = new GridCellT[ColumnCount, RowCount];
+
+            for (int col = 0; col < ColumnCount; col++)
+            {
+                for (int row = 0; row < RowCount; row++)
+                {
+                    GenericGridCells[col, row] = (GridCellT)GridCells[col, row];
                 }
             }
         }
