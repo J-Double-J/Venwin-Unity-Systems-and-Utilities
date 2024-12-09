@@ -1,3 +1,8 @@
+## [Version 1.2.1] - 2024-12-09
+
+### Fixed
+- `ObjectPoolMonoBehaviorManager` registers instance on awake instead of start now.
+
 ## [Version 1.2.0] - 2024-10-23
 
 ### Added

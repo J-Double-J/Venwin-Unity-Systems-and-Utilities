@@ -29,7 +29,7 @@ namespace Venwin.ObjectPool
 
         private static List<PoolLookup> poolData = new();
 
-        private void Start()
+        private void Awake()
         {
             if (instance == null)
             {
