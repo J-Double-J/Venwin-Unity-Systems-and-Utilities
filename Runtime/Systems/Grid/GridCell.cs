@@ -155,7 +155,7 @@ namespace Venwin.Grid
         }
 
         /// <summary>
-        /// Checks for GameObjects in its cell and returns all game objects in the layer that have a specified component.
+        /// Checks for GameObjects in its cell and returns all root game objects in the layer that have a specified component.
         /// </summary>
         /// <remarks>
         /// Ignores trigger colliders.<br/>
@@ -182,6 +182,40 @@ namespace Venwin.Grid
                 T? searchedForObject = ParentChildUtilities.GetComponentInParentOrChildren<T>(rootObject);
                 
                 if(searchedForObject != null)
+                {
+                    uniqueObjects.Add(searchedForObject);
+                }
+            }
+
+            return uniqueObjects;
+        }
+
+        /// <summary>
+        /// Checks for GameObjects in its cell and returns all game objects in the layer that have a specified component.
+        /// </summary>
+        /// <remarks>
+        /// Ignores trigger colliders.<br/>
+        /// Will <strong>only</strong> check the game object any <see cref="Collider"/> is attached is to.
+        /// </remarks>
+        /// <typeparam name="T">Type of component to search for.</typeparam>
+        /// <param name="layerMask">Layer Mask to look within.</param>
+        /// <returns>A hashset of game objects that each of the search for component./returns>
+        public HashSet<T> CheckForUniqueGameObjectsWithinCellBounds<T>(LayerMask layerMask) where T : Component
+        {
+            // We want to detect only above the grid cell, so we add to the y-axis of the center so that the bottom of the drawn box is on top of the cell.
+            Collider[] hitColliders = Physics.OverlapBox(CenterOfCellWorldSpace + new Vector3(0, CellSize / 2f, 0),
+                                                         new Vector3(CellSize / 2f, CellSize / 2f, CellSize / 2f),
+                                                         Quaternion.identity,
+                                                         layerMask,
+                                                         QueryTriggerInteraction.Ignore);
+
+            HashSet<T> uniqueObjects = new();
+
+            foreach (Collider collider in hitColliders)
+            {
+                GameObject gameObject = collider.gameObject;
+
+                if (gameObject.TryGetComponent(out T searchedForObject))
                 {
                     uniqueObjects.Add(searchedForObject);
                 }

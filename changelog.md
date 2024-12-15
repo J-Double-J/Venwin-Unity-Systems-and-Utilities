@@ -1,3 +1,10 @@
+## [Version 1.2.2] - 2024-12-09
+
+### Added
+- Grid Cells now can detect just the immediate game objects that components are attached to, not just the root object.
+- JsonFileUtil for exporting and loading in JSON files.
+- Cursor Utilities now has short hand for checking if cursor is over a UI element.
+
 ## [Version 1.2.1] - 2024-12-09
 
 ### Fixed

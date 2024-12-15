@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 #nullable enable
 
@@ -79,6 +80,15 @@ namespace Venwin.Utilities
             }
 
             return (new CursorInformation(false, Vector3.zero), default(T));
+        }
+
+        /// <summary>
+        /// Gets whether or not the cursor is on a UI element.
+        /// </summary>
+        /// <returns>True if the pointer is over a UI element.</returns>
+        public static bool PointerOnUIElement()
+        {
+            return EventSystem.current.IsPointerOverGameObject();
         }
     }
 }
