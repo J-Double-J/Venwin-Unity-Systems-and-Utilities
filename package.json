@@ -1,7 +1,7 @@
 {
   "name": "com.venwin.systems",
   "displayName": "Venwin's Systems and Utilities",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "unity": "2023.2",
   "description": "Venwin's home-brewed systems and utilities to promote code reuse.",
   "author": {
