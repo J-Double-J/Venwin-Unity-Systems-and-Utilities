@@ -1,4 +1,10 @@
-## [Version 1.2.2] - 2024-12-09
+## [Version 1.2.3] - 2024-12-16
+
+### Changed
+- Grid Pathfinding algorithms now have optional bool flag that can consider a Cell's navigatability when finding a path.
+	- Non breaking change. Set to false by default.
+
+## [Version 1.2.2] - 2024-12-15
 
 ### Added
 - Grid Cells now can detect just the immediate game objects that components are attached to, not just the root object.

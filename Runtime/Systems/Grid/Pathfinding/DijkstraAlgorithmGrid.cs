@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Venwin.DataStructures;
 
 namespace Venwin.Grid.Pathfinding
@@ -12,9 +14,16 @@ namespace Venwin.Grid.Pathfinding
         /// <param name="start">Starting Cell</param>
         /// <param name="maxCost">The maximum cost allowed to spend</param>
         /// <param name="includingStartCell">Indicates whether the starting cell should be part of the returned HashSet.</param>
+        /// <param name="considerIsNavigatable">Indicates whether to check the <see cref="GridCell.IsNavigatable"/> on each grid cell when considering pathing.</param>
         /// <returns>A list of cells that are accessible within the maximum cost.</returns>
-        public static HashSet<GridCell> FindAllCellsWithinCost(GridCell start, int maxCost, bool includingStartCell = false)
+        /// <exception cref="ArgumentException">Thrown if start cell is not navigatable and <paramref name="considerIsNavigatable"/> is set to true.</exception>
+        public static HashSet<GridCell> FindAllCellsWithinCost(GridCell start, int maxCost, bool includingStartCell = false, bool considerIsNavigatable = false)
         {
+            if (considerIsNavigatable)
+            {
+                if (!start.IsNavigatable) { throw new ArgumentException("Start Cell must be navigatable"); }
+            }
+
             var frontier = new PriorityQueue<GridCell>();
             frontier.Enqueue(start, 0);
 
@@ -28,8 +37,11 @@ namespace Venwin.Grid.Pathfinding
             {
                 var current = frontier.Dequeue();
 
+                IReadOnlyCollection<GridCell> nextCellsToConsider = considerIsNavigatable ? current.Neighbors.Where(cell => cell.IsNavigatable).ToList()
+                                                                                          : current.Neighbors;
+
                 // Iterate through neighbors
-                foreach (var next in current.Neighbors)
+                foreach (var next in nextCellsToConsider)
                 {
                     int newCost = costSoFar[current] + next.GetCostToEnter(current);
 
