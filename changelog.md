@@ -1,3 +1,10 @@
+## [Version 1.2.4] - 2024-12-22
+
+### Fixed
+- Added virtual to `GridObject`'s `Awake()` that was missing previously.
+- `ParentChildUtilities.SetObjectAndChildrenToLayer` now works properly.
+	- It is an API change, however, considering it never worked in the first place so it'll be considered a patch.	
+
 ## [Version 1.2.3] - 2024-12-16
 
 ### Changed

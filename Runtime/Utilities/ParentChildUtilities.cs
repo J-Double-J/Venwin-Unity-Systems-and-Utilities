@@ -171,14 +171,14 @@ namespace Venwin.Utilities
         /// Sets an object and all of its children to a certain layer.
         /// </summary>
         /// <param name="gameObject">Parent object</param>
-        /// <param name="layerMask">Layer to set object to.</param>
-        public static void SetObjectAndChildrenToLayer(GameObject gameObject, LayerMask layerMask)
+        /// <param name="layerName">Name of the layer to set the objects to.</param>
+        public static void SetObjectAndChildrenToLayer(GameObject gameObject, string layerName)
         {
-            gameObject.layer = layerMask;
+            gameObject.layer = LayerMask.NameToLayer(layerName);
 
             foreach (Transform child in gameObject.transform)
             {
-                SetObjectAndChildrenToLayer(child.gameObject, layerMask);
+                SetObjectAndChildrenToLayer(child.gameObject, layerName);
             }
         }
     }

@@ -29,7 +29,7 @@ namespace Venwin.Grid
 
         #endregion Properties
 
-        public void Awake()
+        protected virtual void Awake()
         {
             cellDetails ??= new GridObjectCellDetails();
             cellDetails.Initialize(this);
