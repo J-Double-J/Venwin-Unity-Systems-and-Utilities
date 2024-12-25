@@ -1,3 +1,8 @@
+## [Version 1.3] - 2024-12-25
+
+### Changed
+- Object Pooling is now generic that works with MonoBehaviors
+
 ## [Version 1.2.4] - 2024-12-22
 
 ### Fixed

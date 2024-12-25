@@ -6,18 +6,18 @@ using Object = UnityEngine.Object;
 namespace Venwin.ObjectPool
 {
     /// <summary>
-    /// Object Pool that works with MonoBehaviors. Checks if a GameObject has an <see cref="IIsPooledEntity"/> so that it can be aware of what pool it belongs to.
+    /// Object Pool that works with <see cref="MonoBehaviour"/>s. Checks if <typeparamref name="T"/> is a <see cref="IIsPooledEntity"/> so that it can be aware of what pool it belongs to.
     /// </summary>
-    public class ObjectPoolMonoBehavior
+    public class ObjectPoolMonoBehavior<T> : IObjectPoolMonoBehavior where T : MonoBehaviour
     {
-        public GameObject Prefab { get; }
+        public T Prefab { get; }
         public int PoolSize { get; }
 
-        private Queue<GameObject> pool;
+        private Queue<T> pool;
         private Vector3 spawnLocation;
         private Quaternion spawnRotation;
 
-        public ObjectPoolMonoBehavior(GameObject pooledObject, int poolSize = 10)
+        public ObjectPoolMonoBehavior(T pooledObject, int poolSize = 10)
         {
             Prefab = pooledObject;
             PoolSize = poolSize;
@@ -27,22 +27,23 @@ namespace Venwin.ObjectPool
         /// Creates the initial object pool.
         /// </summary>
         /// <remarks>
-        /// If <see cref="GameObject"/> implements <see cref="IIsPooledEntity"/> then it registers itself as the pool for that entity.<br/>
+        /// If <typeparamref name="T"/> implements <see cref="IIsPooledEntity"/> then this pool registers itself as the owning pool for that entity.<br/>
         /// Note that it grabs the first script that implements that interface.
         /// </remarks>
+        /// <param name="parentPoolObject">The parent of this pool object for organized heirarchy purposes</param>
         /// <param name="createdObjectCallback">Called if there is addtional set up required before the object calls <code>SetActive(false)</code></param>
-        public void CreateInitialPool(Transform parentPoolObject, Action<GameObject> createdObjectCallback = null)
+        public void CreateInitialPool(Transform parentPoolObject, Action<T> createdObjectCallback = null)
         {
-            pool = new Queue<GameObject>();
+            pool = new Queue<T>();
             for (int i = 0; i < PoolSize; i++)
             {
-                GameObject obj = Object.Instantiate(Prefab, spawnLocation, Quaternion.identity, parentPoolObject);
+                T obj = Object.Instantiate(Prefab.gameObject, spawnLocation, Quaternion.identity, parentPoolObject).GetComponent<T>();
                 createdObjectCallback?.Invoke(obj);
 
-                IIsPooledEntity pooledEnt = obj.GetComponent<IIsPooledEntity>();
+                IIsPooledEntity<T> pooledEnt = obj.GetComponent<IIsPooledEntity<T>>();
                 pooledEnt.ObjectPool = this;
 
-                obj.SetActive(false);
+                obj.gameObject.SetActive(false);
                 pool.Enqueue(obj);
             }
         }
@@ -52,20 +53,20 @@ namespace Venwin.ObjectPool
         /// </summary>
         /// <param name="spawnLocation">Where to spawn the object.</param>
         /// <param name="spawnRotation">What orientation to spawn the object.</param>
-        /// <returns>The re-enabled game object at <paramref name="spawnLocation"/> with a <paramref name="spawnRotation"/>.</returns>
-        public GameObject GetPooledObject(Vector3 spawnLocation, Quaternion spawnRotation)
+        /// <returns>The re-enabled monobehavior at <paramref name="spawnLocation"/> with a <paramref name="spawnRotation"/>.</returns>
+        public T GetPooledObject(Vector3 spawnLocation, Quaternion spawnRotation)
         {
             // Return a pooled object if available
             if (pool.Count > 0)
             {
-                GameObject obj = pool.Dequeue();
+                T obj = pool.Dequeue();
                 obj.transform.SetPositionAndRotation(spawnLocation, spawnRotation);
-                obj.SetActive(true); // Activate the object
+                obj.gameObject.SetActive(true); // Activate the object
                 return obj;
             }
             else
             {
-                GameObject obj = Object.Instantiate(Prefab, spawnLocation, spawnRotation);
+                T obj = Object.Instantiate(Prefab, spawnLocation, spawnRotation);
                 return obj;
             }
         }
@@ -77,10 +78,10 @@ namespace Venwin.ObjectPool
         /// Please note that there are no checks done on if the object was originally in this pool. Anything can be put back in.<br/>
         /// Implementors should be careful to ensure that incorrect objects are not added.
         /// </remarks>
-        /// <param name="obj">The Gameobject to put back in this pool.</param>
-        public void ReturnToPool(GameObject obj)
+        /// <param name="obj">The monobehavior to put back in this pool.</param>
+        public void ReturnToPool(T obj)
         {
-            obj.SetActive(false);
+            obj.gameObject.SetActive(false);
             obj.transform.SetPositionAndRotation(spawnLocation, spawnRotation);
             pool.Enqueue(obj);
         }

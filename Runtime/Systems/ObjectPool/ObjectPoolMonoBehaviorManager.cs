@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
+
+#nullable enable
 
 namespace Venwin.ObjectPool
 {
@@ -10,7 +13,7 @@ namespace Venwin.ObjectPool
     public class ObjectPoolMonoBehaviorManager : MonoBehaviour
     {
         private static ObjectPoolMonoBehaviorManager instance;
-        public static ObjectPoolMonoBehaviorManager Instance
+        public static ObjectPoolMonoBehaviorManager? Instance
         {
             get
             {
@@ -24,10 +27,14 @@ namespace Venwin.ObjectPool
                     return instance;
                 }
             }
-            private set { instance = value; }
+            private set
+            {
+                if (value == null) { throw new ArgumentException($"Cannot set {nameof(ObjectPoolMonoBehaviorManager)}.{Instance} to a null value!"); }
+                instance = value;
+            }
         }
 
-        private static List<PoolLookup> poolData = new();
+        private readonly static List<PoolLookup> poolData = new();
 
         private void Awake()
         {
@@ -48,26 +55,38 @@ namespace Venwin.ObjectPool
         /// <param name="pooledObject">The object being created in the pool.</param>
         /// <param name="poolSize">Number of elements in the pool.</param>
         /// <returns>The created or found pool.</returns>
-        public static ObjectPoolMonoBehavior CreatePool(string name, GameObject pooledObject, int poolSize = 10)
+        public static ObjectPoolMonoBehavior<T> CreatePool<T>(string name, T pooledObject, int poolSize = 10) where T : MonoBehaviour
         {
             PoolLookup lookup = poolData.Find(d => d.Name == name);
 
             if (lookup == null)
             {
-                GameObject objectPool = new GameObject(name);
-                objectPool.transform.parent = Instance.transform;
+                GameObject objectPool = new(name);
+                objectPool.transform.parent = Instance!.transform;
 
-                ObjectPoolMonoBehavior pool = new(pooledObject, poolSize);
+                ObjectPoolMonoBehavior<T> pool = new(pooledObject, poolSize);
                 pool.CreateInitialPool(objectPool.transform);
 
                 lookup = new PoolLookup(name, objectPool, pool);
+                poolData.Add(lookup);
                 return pool;
             }
             else
             {
                 Debug.LogWarning($"There is already a pool named {name}");
-                return lookup.Pool;
+                return (ObjectPoolMonoBehavior<T>)lookup.Pool;
             }
+        }
+
+        public static bool TryFindPool<T>(string name, out ObjectPoolMonoBehavior<T>? pool) where T : MonoBehaviour
+        {
+            pool = null;
+            PoolLookup lookup = poolData.Find(d => d.Name == name);
+
+            if(lookup == null) { return false; }
+
+            pool = (ObjectPoolMonoBehavior<T>)lookup.Pool;
+            return true;
         }
 
 
@@ -94,9 +113,9 @@ namespace Venwin.ObjectPool
         {
             public string Name;
             public GameObject PoolObject;
-            public ObjectPoolMonoBehavior Pool;
+            public IObjectPoolMonoBehavior Pool;
 
-            public PoolLookup(string name, GameObject poolObject, ObjectPoolMonoBehavior pool)
+            public PoolLookup(string name, GameObject poolObject, IObjectPoolMonoBehavior pool)
             {
                 Name = name;
                 PoolObject = poolObject;
