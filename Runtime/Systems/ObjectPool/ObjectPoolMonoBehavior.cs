@@ -4,6 +4,8 @@ using UnityEngine;
 using Venwin.Collections;
 using Object = UnityEngine.Object;
 
+#nullable enable
+
 namespace Venwin.ObjectPool
 {
     /// <summary>
@@ -13,8 +15,16 @@ namespace Venwin.ObjectPool
     {
         public T Prefab { get; }
         public int PoolSize { get; }
-        
-        private Queue<T> _pool;
+
+        /// <summary>
+        /// Gets called whenever an object is tried to be retrieved from the pool and none are available.
+        /// </summary>
+        /// <remarks>
+        /// If there is additional setup that needs to be done on new pooled objects beyond the prefab it can done with this action.<br/>
+        /// <strong>Note:</strong> this is not called when creating the initial pool. There is an appropriate parameter for that.
+        /// </remarks>
+        public Action<T>? OnGetPooledObjectCreation = null;
+
         private Queue<T> _pool = new();
         private Vector3 spawnLocation;
         private Quaternion spawnRotation;
@@ -37,7 +47,7 @@ namespace Venwin.ObjectPool
         /// </remarks>
         /// <param name="parentPoolObject">The parent of this pool object for organized heirarchy purposes</param>
         /// <param name="createdObjectCallback">Called if there is addtional set up required before the object calls <code>SetActive(false)</code></param>
-        public void CreateInitialPool(Transform parentPoolObject, Action<T> createdObjectCallback = null)
+        public void CreateInitialPool(Transform parentPoolObject, Action<T>? createdObjectCallback = null)
         {
             for (int i = 0; i < PoolSize; i++)
             {
@@ -71,6 +81,7 @@ namespace Venwin.ObjectPool
             else
             {
                 T obj = Object.Instantiate(Prefab, spawnLocation, spawnRotation);
+                OnGetPooledObjectCreation?.Invoke(obj);
                 return obj;
             }
         }

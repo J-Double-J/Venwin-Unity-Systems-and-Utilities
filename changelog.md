@@ -1,3 +1,8 @@
+## [Version 1.3.2] - 2024-12-25
+
+### Added
+- Object Pooling can now have a callback action on any new objects that are created when all pooled objects are unavailable.
+
 ## [Version 1.3.1] - 2024-12-25
 
 ### Added
