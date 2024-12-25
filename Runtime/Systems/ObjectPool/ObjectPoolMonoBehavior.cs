@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Venwin.Collections;
 using Object = UnityEngine.Object;
 
 namespace Venwin.ObjectPool
@@ -12,15 +13,18 @@ namespace Venwin.ObjectPool
     {
         public T Prefab { get; }
         public int PoolSize { get; }
-
-        private Queue<T> pool;
+        
+        private Queue<T> _pool;
         private Vector3 spawnLocation;
         private Quaternion spawnRotation;
+
+        public ReadOnlyQueue<T> Pool { get; private set; }
 
         public ObjectPoolMonoBehavior(T pooledObject, int poolSize = 10)
         {
             Prefab = pooledObject;
             PoolSize = poolSize;
+            Pool = new ReadOnlyQueue<T>(_pool);
         }
 
         /// <summary>
@@ -34,7 +38,7 @@ namespace Venwin.ObjectPool
         /// <param name="createdObjectCallback">Called if there is addtional set up required before the object calls <code>SetActive(false)</code></param>
         public void CreateInitialPool(Transform parentPoolObject, Action<T> createdObjectCallback = null)
         {
-            pool = new Queue<T>();
+            _pool = new Queue<T>();
             for (int i = 0; i < PoolSize; i++)
             {
                 T obj = Object.Instantiate(Prefab.gameObject, spawnLocation, Quaternion.identity, parentPoolObject).GetComponent<T>();
@@ -44,7 +48,7 @@ namespace Venwin.ObjectPool
                 pooledEnt.ObjectPool = this;
 
                 obj.gameObject.SetActive(false);
-                pool.Enqueue(obj);
+                _pool.Enqueue(obj);
             }
         }
 
@@ -57,9 +61,9 @@ namespace Venwin.ObjectPool
         public T GetPooledObject(Vector3 spawnLocation, Quaternion spawnRotation)
         {
             // Return a pooled object if available
-            if (pool.Count > 0)
+            if (_pool.Count > 0)
             {
-                T obj = pool.Dequeue();
+                T obj = _pool.Dequeue();
                 obj.transform.SetPositionAndRotation(spawnLocation, spawnRotation);
                 obj.gameObject.SetActive(true); // Activate the object
                 return obj;
@@ -83,7 +87,7 @@ namespace Venwin.ObjectPool
         {
             obj.gameObject.SetActive(false);
             obj.transform.SetPositionAndRotation(spawnLocation, spawnRotation);
-            pool.Enqueue(obj);
+            _pool.Enqueue(obj);
         }
     }
 }
