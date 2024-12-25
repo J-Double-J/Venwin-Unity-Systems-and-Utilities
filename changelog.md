@@ -1,7 +1,16 @@
+## [Version 1.3.1] - 2024-12-25
+
+### Added
+- Added a ReadOnlyQueue collection type.
+- Object Pooling now has a readonly Pool Queue that can be used to loop over pool objects. 
+
 ## [Version 1.3] - 2024-12-25
 
 ### Changed
 - Object Pooling is now generic that works with MonoBehaviors
+
+### Fixed
+- Object Pooling now can actually reuse a pool across the same object types.
 
 ## [Version 1.2.4] - 2024-12-22
 
