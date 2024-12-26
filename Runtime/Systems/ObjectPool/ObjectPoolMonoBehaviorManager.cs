@@ -51,11 +51,26 @@ namespace Venwin.ObjectPool
         /// <summary>
         /// Creates a pool and a Game Object to store all the pooled objects neatly.
         /// </summary>
+        /// <typeparam name="T">Type of object managed by the object pool.</typeparam>
         /// <param name="name">Name of the game object pool.</param>
         /// <param name="pooledObject">The object being created in the pool.</param>
         /// <param name="poolSize">Number of elements in the pool.</param>
         /// <returns>The created or found pool.</returns>
         public static ObjectPoolMonoBehavior<T> CreatePool<T>(string name, T pooledObject, int poolSize = 10) where T : MonoBehaviour
+        {
+            return CreatePool(name, pooledObject, poolSize, null);
+        }
+
+        /// <summary>
+        /// Creates a pool and a Game Object to store all the pooled objects neatly.
+        /// </summary>
+        /// <typeparam name="T">Type of object managed by the object pool.</typeparam>
+        /// <param name="name">Name of the game object pool.</param>
+        /// <param name="pooledObject">The object being created in the pool.</param>
+        /// <param name="poolSize">Number of elements in the pool.</param>
+        /// <param name="instanceCreatedCallback">Callback function for each created instance of <typeparamref name="T"/>.</param>
+        /// <returns>The created or found pool.</returns>
+        public static ObjectPoolMonoBehavior<T> CreatePool<T>(string name, T pooledObject, int poolSize = 10, Action<T>? instanceCreatedCallback = null) where T : MonoBehaviour
         {
             PoolLookup lookup = poolData.Find(d => d.Name == name);
 
@@ -65,7 +80,7 @@ namespace Venwin.ObjectPool
                 objectPool.transform.parent = Instance!.transform;
 
                 ObjectPoolMonoBehavior<T> pool = new(pooledObject, poolSize);
-                pool.CreateInitialPool(objectPool.transform);
+                pool.CreateInitialPool(objectPool.transform, instanceCreatedCallback);
 
                 lookup = new PoolLookup(name, objectPool, pool);
                 poolData.Add(lookup);
@@ -78,6 +93,13 @@ namespace Venwin.ObjectPool
             }
         }
 
+        /// <summary>
+        /// Tries to find the object pool by name. Type must also match.
+        /// </summary>
+        /// <typeparam name="T">Type managed by pool.</typeparam>
+        /// <param name="name">Name of the pool.</param>
+        /// <param name="pool">The found pool, else null.</param>
+        /// <returns>True if it could find the pool that the name and matches type, else false.</returns>
         public static bool TryFindPool<T>(string name, out ObjectPoolMonoBehavior<T>? pool) where T : MonoBehaviour
         {
             pool = null;
@@ -85,7 +107,16 @@ namespace Venwin.ObjectPool
 
             if(lookup == null) { return false; }
 
-            pool = (ObjectPoolMonoBehavior<T>)lookup.Pool;
+            try
+            {
+                pool = (ObjectPoolMonoBehavior<T>)lookup.Pool;
+            }
+            catch
+            {
+                Debug.LogError($"{nameof(ObjectPoolMonoBehaviorManager)} found a pool with the name `{name}` but couldn't successfully cast it to type {typeof(T).Name}! Returning false.");
+                return false;
+            }
+
             return true;
         }
 

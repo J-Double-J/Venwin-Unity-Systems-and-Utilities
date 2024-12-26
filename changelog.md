@@ -1,3 +1,12 @@
+## [Version 1.3.3] - 2024-12-26
+
+### Added
+- Object Pooling Manager now has a callback creation option.
+	- This was already available in the ObjectPooling type, but the "Out of the Box" manager didn't provide a quick way to use it.
+
+### Fixed
+- Object Pooling Manager's FindPool method now safely does a cast to validate the name and type expectations match. If a failed cast occurs it prints an error message but safely fails.
+
 ## [Version 1.3.2] - 2024-12-25
 
 ### Added
