@@ -6,6 +6,7 @@
 
 ### Fixed
 - Object Pooling Manager's FindPool method now safely does a cast to validate the name and type expectations match. If a failed cast occurs it prints an error message but safely fails.
+- Object Pooling now informs new objects that they have a pool to return back to. Also now actually assigns them to the pool object so that less expansion is needed in the future.
 
 ## [Version 1.3.2] - 2024-12-25
 

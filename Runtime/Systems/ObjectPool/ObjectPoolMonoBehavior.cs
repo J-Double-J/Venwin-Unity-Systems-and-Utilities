@@ -28,6 +28,7 @@ namespace Venwin.ObjectPool
         private Queue<T> _pool = new();
         private Vector3 spawnLocation;
         private Quaternion spawnRotation;
+        private Transform? parentPoolObject;
 
         public ReadOnlyQueue<T> Pool { get; private set; }
 
@@ -49,6 +50,7 @@ namespace Venwin.ObjectPool
         /// <param name="createdObjectCallback">Called if there is addtional set up required before the object calls <code>SetActive(false)</code></param>
         public void CreateInitialPool(Transform parentPoolObject, Action<T>? createdObjectCallback = null)
         {
+            this.parentPoolObject = parentPoolObject;
             for (int i = 0; i < PoolSize; i++)
             {
                 T obj = Object.Instantiate(Prefab.gameObject, spawnLocation, Quaternion.identity, parentPoolObject).GetComponent<T>();
@@ -75,13 +77,18 @@ namespace Venwin.ObjectPool
             {
                 T obj = _pool.Dequeue();
                 obj.transform.SetPositionAndRotation(spawnLocation, spawnRotation);
-                obj.gameObject.SetActive(true); // Activate the object
+                obj.gameObject.SetActive(true);
                 return obj;
             }
             else
             {
-                T obj = Object.Instantiate(Prefab, spawnLocation, spawnRotation);
+                T obj = Object.Instantiate(Prefab.gameObject, spawnLocation, spawnRotation, parentPoolObject!).GetComponent<T>();
                 OnGetPooledObjectCreation?.Invoke(obj);
+                obj.gameObject.SetActive(true);
+
+                IIsPooledEntity<T> pooledEnt = obj.GetComponent<IIsPooledEntity<T>>();
+                pooledEnt.ObjectPool = this;
+
                 return obj;
             }
         }
