@@ -12,13 +12,13 @@ namespace Venwin.Grid
     /// </remarks>
     public class SquareGrid<GridCellT, T> : Grid<GridCellT, T> where GridCellT : GridCell<T> where T : GridObject
     {
-        public SquareGrid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
-            : base(transform, mesh, cellSize, gridLayer)
+        public SquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer)
         {
         }
 
-        public SquareGrid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT> cellCreationCallback)
-            : base(transform, mesh, cellSize, gridLayer, cellCreationCallback)
+        public SquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT> cellCreationCallback)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, cellCreationCallback)
         {
         }
 
@@ -27,14 +27,17 @@ namespace Venwin.Grid
         {
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    if (GridIsNavigatable)
+                    for (int row = 0; row < RowCount; row++)
                     {
-                        AssignCellNeighbors(GridCells[col, row]);
-                    }
+                        if (GridIsNavigatable)
+                        {
+                            AssignCellNeighbors(GridCells[col, yAxis, row]);
+                        }
 
-                    GridCells[col, row].IsNavigatable = GridIsNavigatable;
+                        GridCells[col, yAxis, row].IsNavigatable = GridIsNavigatable;
+                    }
                 }
             }
         }
@@ -45,44 +48,49 @@ namespace Venwin.Grid
         /// <param name="currentCell">The cell getting neighbors</param>
         protected override void AssignCellNeighbors(GridCell currentCell)
         {
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, 0, currentCell.GridCoordinates.z + 1)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 1)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.z + 1]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 1]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x + 1, 0, currentCell.GridCoordinates.z)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.z]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, 0, currentCell.GridCoordinates.z - 1)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z - 1)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.z - 1]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z - 1]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x - 1, 0, currentCell.GridCoordinates.z)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.z + 0]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 0]);
             }
         }
 
         /// <inheritdoc/>
         protected override void CreateGridCells()
         {
-            GridCells = new GridCell[ColumnCount, RowCount];
+            GridCells = new GridCell[ColumnCount, YAxisMax, RowCount];
 
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, 0, row * CellSize + BottomLeftCorner.z);
-                    if (CellCreationCallback == null)
+                    for (int row = 0; row < RowCount; row++)
                     {
-                        GridCells[col, row] = new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
-                    }
-                    else
-                    {
-                        GridCells[col, row] = CellCreationCallback(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                        Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x,
+                                                            yAxis * CellSize + BottomLeftCorner.y,
+                                                            row * CellSize + BottomLeftCorner.z);
+                        if (CellCreationCallback == null)
+                        {
+                            GridCells[col, yAxis, row] = new GridCell<T>(this, CellSize, new Vector3Int(col, yAxis, row), worldSpaceCoordinates);
+                        }
+                        else
+                        {
+                            GridCells[col, yAxis, row] = CellCreationCallback(this, CellSize, new Vector3Int(col, yAxis, row), worldSpaceCoordinates);
+                        }
                     }
                 }
             }

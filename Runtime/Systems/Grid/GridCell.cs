@@ -6,7 +6,7 @@ using Venwin.Utilities;
 
 namespace Venwin.Grid
 {
-    /// <summary>
+    /// <summary> 
     /// Non-generic implementation of a grid cell. Used when the type of object stored doesn't matter.
     /// </summary>
     public class GridCell

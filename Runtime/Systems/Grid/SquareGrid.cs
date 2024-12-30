@@ -18,8 +18,8 @@ namespace Venwin.Grid
         /// <param name="mesh"></param>
         /// <param name="cellSize"></param>
         /// <param name="gridLayer"></param>
-        public SquareGrid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
-            : base(transform, mesh, cellSize, gridLayer)
+        public SquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer)
         {
         }
 
@@ -28,14 +28,17 @@ namespace Venwin.Grid
         {
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    if (GridIsNavigatable)
+                    for (int row = 0; row < RowCount; row++)
                     {
-                        AssignCellNeighbors(GridCells[col, row]);
-                    }
+                        if (GridIsNavigatable)
+                        {
+                            AssignCellNeighbors(GridCells[col, yAxis, row]);
+                        }
 
-                    GridCells[col, row].IsNavigatable = GridIsNavigatable;
+                        GridCells[col, yAxis, row].IsNavigatable = GridIsNavigatable;
+                    }
                 }
             }
         }
@@ -46,38 +49,41 @@ namespace Venwin.Grid
         /// <param name="currentCell">The cell getting neighbors</param>
         protected virtual void AssignCellNeighbors(GridCell currentCell)
         {
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, 0, currentCell.GridCoordinates.z + 1)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 1)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.z + 1]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 1]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x + 1, 0, currentCell.GridCoordinates.z)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.z]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, 0, currentCell.GridCoordinates.z - 1)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z - 1)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.z - 1]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z - 1]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x - 1, 0, currentCell.GridCoordinates.z)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.z + 0]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 0]);
             }
         }
 
         /// <inheritdoc/>
         protected override void CreateGridCells()
         {
-            GridCells = new GridCell[ColumnCount, RowCount];
+            GridCells = new GridCell[ColumnCount, YAxisMax, RowCount];
 
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, 0, row * CellSize + BottomLeftCorner.z);
-                    GridCells[col, row] = new GridCell(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    for (int row = 0; row < RowCount; row++)
+                    {
+                        Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, yAxis * CellSize + BottomLeftCorner.y, row * CellSize + BottomLeftCorner.z);
+                        GridCells[col, yAxis, row] = new GridCell(this, CellSize, new Vector3Int(col, yAxis, row), worldSpaceCoordinates);
+                    }
                 }
             }
         }

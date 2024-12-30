@@ -15,10 +15,11 @@ namespace Venwin.Grid
     {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private GridObject owningGridObject;
-        private CellDetails[,] cellDetails;
+        private CellDetails[,,] cellDetails;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-        [Tooltip("Starts at bottom left of grid, goes rightward then up. So in a 2x3 example, it goes (0,0) -> (0, 1) -> (0,2) -> (1,0) -> (1,1)...")]
+        [Tooltip("Starts at bottom left of grid, goes rightward then up. So in a 2x3 example, it goes (0,0) -> (0, 1) -> (0,2) -> (1,0) -> (1,1)...\n" +
+            "Then for the y-axis it repeats the pattern but for the next layer up.")]
         [SerializeField] private List<CellDetails> details = new();
 
         /// <summary>
@@ -38,22 +39,25 @@ namespace Venwin.Grid
             owningGridObject = gridObject;
             GridDimensions gridDimensions = gridObject.GetDimensions();
 
-            cellDetails ??= new CellDetails[gridDimensions.X, gridDimensions.Z];
+            cellDetails ??= new CellDetails[gridDimensions.X, gridDimensions.Y, gridDimensions.Z];
             details ??= new();
 
             bool populateDetailsFromList = details.Count != 0;
-            if (populateDetailsFromList && details.Count != gridDimensions.X * gridDimensions.Z)
+            if (populateDetailsFromList && details.Count != gridDimensions.X * gridDimensions.Z * gridDimensions.Y)
             {
                 populateDetailsFromList = false;
                 Debug.LogError($"The List of CellDetails populated in the list is not equal to the dimensions of the GridObject. " +
                     $"In this scenario we are unsure of what should occur to the missing cells. None of the cells will be populated as a result.");
             }
 
-            for (int row = 0; row < gridDimensions.Z; row++)
+            for(int yAxis = 0; yAxis < gridDimensions.Y; yAxis++)
             {
-                for (int col = 0; col < gridDimensions.X; col++)
+                for (int row = 0; row < gridDimensions.Z; row++)
                 {
-                    cellDetails[col, row] = populateDetailsFromList ? details[col + row] : new CellDetails();
+                    for (int col = 0; col < gridDimensions.X; col++)
+                    {
+                        cellDetails[col, yAxis, row] = populateDetailsFromList ? details[col + row + yAxis] : new CellDetails();
+                    }
                 }
             }
         }
@@ -83,13 +87,13 @@ namespace Venwin.Grid
             switch (owningGridObject.ObjectOriginPosition)
             {
                 case OriginPosition.BottomLeft:
-                    return cellDetails[localObjectCoordinates.z, localObjectCoordinates.x];
+                    return cellDetails[localObjectCoordinates.z, localObjectCoordinates.y, localObjectCoordinates.x];
                 case OriginPosition.TopLeft:
-                    return cellDetails[localObjectCoordinates.x, rows - 1 - localObjectCoordinates.z];
+                    return cellDetails[localObjectCoordinates.x, localObjectCoordinates.y, rows - 1 - localObjectCoordinates.z];
                 case OriginPosition.TopRight:
-                    return cellDetails[rows - 1 - localObjectCoordinates.z, cols - 1 - localObjectCoordinates.x];
+                    return cellDetails[rows - 1 - localObjectCoordinates.z, localObjectCoordinates.y, cols - 1 - localObjectCoordinates.x];
                 case OriginPosition.BottomRight:
-                    return cellDetails[cols - 1 - localObjectCoordinates.x, localObjectCoordinates.z];
+                    return cellDetails[cols - 1 - localObjectCoordinates.x, localObjectCoordinates.y, localObjectCoordinates.z];
                 default:
                     Debug.LogWarning($"Unkown position `{owningGridObject.ObjectOriginPosition}` when finding CellDetails.");
                     return null;
@@ -107,8 +111,8 @@ namespace Venwin.Grid
         {
             Action<GridCellT, T, Vector3Int> assignCellDetailsAction = (cell, gridObject, localCoords) => 
             {
-                cell.CellDetails = cellDetails[localCoords.x, localCoords.z];
-                cellDetails[localCoords.x, localCoords.z].AssignCellToMonobehaviorDetails(cell);
+                cell.CellDetails = cellDetails[localCoords.x, localCoords.y, localCoords.z];
+                cellDetails[localCoords.x, localCoords.y, localCoords.z].AssignCellToMonobehaviorDetails(cell);
             };
 
             grid.ExecuteActionOnGridCellsBasedOnObjectAndOrientation(assignCellDetailsAction, (T)owningGridObject, startingCellCoordinate);
@@ -125,8 +129,8 @@ namespace Venwin.Grid
         {
             Action<GridCellT, T, Vector3Int> assignCellDetailsAction = (cell, _, localCoords) =>
             {
-                cell.CellDetails = cellDetails[localCoords.x, localCoords.z];
-                cellDetails[localCoords.x, localCoords.z].UnassignCellOnMonobehaviorDetails();
+                cell.CellDetails = cellDetails[localCoords.x, localCoords.y, localCoords.z];
+                cellDetails[localCoords.x, localCoords.y, localCoords.z].UnassignCellOnMonobehaviorDetails();
             };
 
             grid.ExecuteActionOnGridCellsBasedOnObjectAndOrientation(assignCellDetailsAction, (T)owningGridObject, startingCellCoordinate);
@@ -153,7 +157,9 @@ namespace Venwin.Grid
         private bool ValidateCoordinatesAreInLocalGrid(Vector3Int coordinates)
         {
             GridDimensions dimensions = owningGridObject.GetDimensions();
-            if (coordinates.x > dimensions.X - 1|| coordinates.x < 0 || coordinates.z > dimensions.Z - 1 || coordinates.z < 0)
+            if (coordinates.x > dimensions.X - 1|| coordinates.x < 0 ||
+                coordinates.z > dimensions.Z - 1 || coordinates.z < 0 ||
+                coordinates.y > dimensions.Y - 1 || coordinates.y < 0)
             {
                 return false;
             }

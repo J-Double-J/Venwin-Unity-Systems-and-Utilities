@@ -29,7 +29,9 @@ namespace Venwin.Grid
 
         public int RowCount { get; private set; }
         public int ColumnCount { get; private set; }
-        public GridCell[,] GridCells { get; protected set; }
+        public int YAxisMax { get; private set; }
+
+        public GridCell[,,] GridCells { get; protected set; }
 
         [Tooltip("This property configures the grid to be able to use pathfinding.")]
         public bool GridIsNavigatable { get; } = true;
@@ -65,8 +67,8 @@ namespace Venwin.Grid
         #endregion
 
 
-        public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
-            : this(transform, mesh, cellSize, gridLayer, null)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
+            : this(transform, mesh, cellSize, yAxisMax, gridLayer, null)
         {
         }
 
@@ -76,24 +78,31 @@ namespace Venwin.Grid
         /// <param name="transform">The transform this grid is on.</param>
         /// <param name="mesh">The bounding mesh for the grid. Used to determine how far to draw grid.</param>
         /// <param name="cellSize">The size of each individaul cell.</param>
+        /// <param name="yAxisMax">The maximum number of y-layers to the grid. Use 0 for a "one layer" or 2D grid.</param>
         /// <param name="gridLayer">Layer the grid resides on.</param>
         /// <param name="callback">Function that takes in parameters for a a grid cell to create custom cells.</param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback)
         {
+            if(yAxisMax < 0)
+            {
+                throw new ArgumentException($"{nameof(Grid)} cannot have a {nameof(yAxisMax)} value of less than 0");
+            }
+
             Transform = transform;
             GameObjectMesh = mesh;
             CellSize = cellSize;
             GridLayer = gridLayer;
-            GridCells = new GridCell[0,0];
+            GridCells = new GridCell[0,0,0];
 
             ScaledBounds = Vector3.Scale(mesh.bounds.size, transform.lossyScale);
             Vector3 center = transform.position;
-            Vector3 halfSize = new Vector3(ScaledBounds.x / 2, 0, ScaledBounds.z / 2);
+            Vector3 halfSize = new Vector3(ScaledBounds.x / 2, 0, ScaledBounds.z / 2); // GRID TODO: Does BottomLeft need to be projected?
             BottomLeftCorner = center - halfSize;
 
             ColumnCount = Mathf.FloorToInt(ScaledBounds.x / CellSize);
             RowCount = Mathf.FloorToInt(ScaledBounds.z / CellSize);
-
+            YAxisMax = yAxisMax + 1;
+            
             CellCreationCallback = callback;
 
             CreateGridCells();
@@ -134,15 +143,18 @@ namespace Venwin.Grid
     /// <returns>The cell's coordinates if its a valid point on the grid, else <see cref="Grid.InvalidCell"/>.</returns>
         public Vector3Int GetCellCoordinatesFromWorldSpace(Vector3 point)
         {
+            float roundedY = Mathf.Round(point.y * 10f) / 10f; // Round to the nearest tenth
+
             int x = Mathf.FloorToInt(point.x - BottomLeftCorner.x) / CellSize;
             int z = Mathf.FloorToInt(point.z - BottomLeftCorner.z) / CellSize;
+            int y = Mathf.FloorToInt(roundedY - BottomLeftCorner.y) / CellSize;
 
-            if (x < 0 || x >= ColumnCount || z < 0 || z >= RowCount)
+            if (x < 0 || x >= ColumnCount || z < 0 || z >= RowCount || y < 0 || y >= YAxisMax)
             {
                 return InvalidCell;
             }
 
-            return new Vector3Int(x, 0, z);
+            return new Vector3Int(x, y, z);
         }
 
         /// <summary>
@@ -156,7 +168,7 @@ namespace Venwin.Grid
 
             if (cellCoordinates == InvalidCell) { return null; }
 
-            return GridCells[cellCoordinates.x, cellCoordinates.z];
+            return GridCells[cellCoordinates.x, cellCoordinates.y, cellCoordinates.z];
         }
 
         /// <summary>
@@ -164,14 +176,14 @@ namespace Venwin.Grid
         /// </summary>
         /// <param name="gridCoordinate">A coordinate that is on the grid.</param>
         /// <returns>A grid cell if the coordinate was valid.</returns>
-        public GridCell? GetCellFromGridCoordiantes(Vector3Int gridCoordinate)
+        public GridCell? GetCellFromGridCoordinates(Vector3Int gridCoordinate)
         {
             if (!IsValidCellCoordinate(gridCoordinate))
             {
                 return null;
             }
 
-            return GridCells[gridCoordinate.x, gridCoordinate.z];
+            return GridCells[gridCoordinate.x, gridCoordinate.y, gridCoordinate.z];
         }
 
         /// <summary>
@@ -195,7 +207,7 @@ namespace Venwin.Grid
         {
             if (!IsValidCellCoordinate(cellCoordinate)) { throw new InvalidOperationException($"Cannot use an invalid cell coordinate for {nameof(GetWorldPositionFromCellAndRotation)}"); }
 
-            Vector3 worldSpace = GetCellFromGridCoordiantes(cellCoordinate)!.WorldSpaceCoordinates;
+            Vector3 worldSpace = GetCellFromGridCoordinates(cellCoordinate)!.WorldSpaceCoordinates;
 
             switch (originPosition)
             {
@@ -234,10 +246,10 @@ namespace Venwin.Grid
 
             return gridObject.ObjectOriginPosition switch
             {
-                OriginPosition.BottomLeft => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, dimensions.X, dimensions.Z),
-                OriginPosition.TopLeft => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, dimensions.Z, -dimensions.X),
-                OriginPosition.BottomRight => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, -dimensions.Z, dimensions.X),
-                OriginPosition.TopRight => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, -dimensions.X, -dimensions.Z),
+                OriginPosition.BottomLeft => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, dimensions.X, dimensions.Y, dimensions.Z),
+                OriginPosition.TopLeft => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, dimensions.Z, dimensions.Y, -dimensions.X),
+                OriginPosition.BottomRight => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, -dimensions.Z, dimensions.Y, dimensions.X),
+                OriginPosition.TopRight => DetermineIfWithinBoundsAndAvailable(cellStart, gridObject, -dimensions.X, dimensions.Y, -dimensions.Z),
                 _ => throw new NotImplementedException(),
             };
         }
@@ -261,23 +273,23 @@ namespace Venwin.Grid
             switch (originPosition)
             {
                 case OriginPosition.BottomLeft:
-                    return DetermineIfWithinBounds(cellStart, dimensions.X, dimensions.Z);
+                    return DetermineIfWithinBounds(cellStart, dimensions.X, dimensions.Y, dimensions.Z);
                 case OriginPosition.TopLeft:
-                    return DetermineIfWithinBounds(cellStart, dimensions.Z, -dimensions.X);
+                    return DetermineIfWithinBounds(cellStart, dimensions.Z, dimensions.Y, -dimensions.X);
                 case OriginPosition.BottomRight:
-                    return DetermineIfWithinBounds(cellStart, -dimensions.Z, dimensions.X);
+                    return DetermineIfWithinBounds(cellStart, -dimensions.Z, dimensions.Y, dimensions.X);
                 case OriginPosition.TopRight:
-                    return DetermineIfWithinBounds(cellStart, -dimensions.X, -dimensions.Z);
+                    return DetermineIfWithinBounds(cellStart, -dimensions.X, dimensions.Y, -dimensions.Z);
                 default:
                     throw new NotImplementedException();
             }
         }
 
-        protected bool DetermineIfWithinBoundsAndAvailable(Vector3Int verifiedCellStart, GridObject gridObject, int columnLength, int rowLength)
+        protected bool DetermineIfWithinBoundsAndAvailable(Vector3Int verifiedCellStart, GridObject gridObject, int columnLength, int yHeight, int rowLength)
         {
             bool isAvailable = true;
 
-            if (!DetermineIfWithinBounds(verifiedCellStart, columnLength, rowLength)) { return false; }
+            if (!DetermineIfWithinBounds(verifiedCellStart, columnLength, yHeight, rowLength)) { return false; }
 
             Action<GridCell, GridObject, Vector3Int> availabilityCheck = (cell, gridObject, localCoords) =>
             {
@@ -325,12 +337,15 @@ namespace Venwin.Grid
                     case OriginPosition.BottomLeft:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for(int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCell cell = GridCells[startingCell.x + col, startingCell.z + row];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCell cell = GridCells[startingCell.x + col, startingCell.y + yAxis, startingCell.z + row];
 
-                                // Executes action
-                                action(cell, gridObject, new Vector3Int(col, 0, row));
+                                    // Executes action
+                                    action(cell, gridObject, new Vector3Int(col, yAxis, row));
+                                }
                             }
                         }
                         break;
@@ -338,11 +353,14 @@ namespace Venwin.Grid
                     case OriginPosition.TopLeft:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for (int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCell cell = GridCells[startingCell.x + row, startingCell.z - col];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCell cell = GridCells[startingCell.x + row, startingCell.y + yAxis, startingCell.z - col];
 
-                                action(cell, gridObject, new Vector3Int(row, 0, col));
+                                    action(cell, gridObject, new Vector3Int(row, yAxis, col));
+                                }
                             }
                         }
                         break;
@@ -350,11 +368,14 @@ namespace Venwin.Grid
                     case OriginPosition.TopRight:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for (int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCell cell = GridCells[startingCell.x - col, startingCell.z - row];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCell cell = GridCells[startingCell.x - col, startingCell.y + yAxis, startingCell.z - row];
 
-                                action(cell, gridObject, new Vector3Int(row, 0, col));
+                                    action(cell, gridObject, new Vector3Int(row, 0, col));
+                                }
                             }
                         }
                         break;
@@ -362,11 +383,14 @@ namespace Venwin.Grid
                     case OriginPosition.BottomRight:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for (int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCell cell = GridCells[startingCell.x - row, startingCell.z + col];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCell cell = GridCells[startingCell.x - row, startingCell.y + yAxis, startingCell.z + col];
 
-                                action(cell, gridObject, new Vector3Int(row, 0, col));
+                                    action(cell, gridObject, new Vector3Int(row, 0, col));
+                                }
                             }
                         }
                         break;
@@ -394,7 +418,7 @@ namespace Venwin.Grid
             if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, 1)))
             {
                 TDetail? northDetail = null;
-                GridCells[cellCoordinate.x, cellCoordinate.z + 1].CellDetails?.TryGetDetail<TDetail>(out northDetail);
+                GridCells[cellCoordinate.x, cellCoordinate.y, cellCoordinate.z + 1].CellDetails?.TryGetDetail<TDetail>(out northDetail);
                 gridDetails.Add(northDetail);
             }
             else { gridDetails.Add(null); }
@@ -403,7 +427,7 @@ namespace Venwin.Grid
             if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(1, 0, 0)))
             {
                 TDetail? eastDetail = null;
-                GridCells[cellCoordinate.x + 1, cellCoordinate.z].CellDetails?.TryGetDetail<TDetail>(out eastDetail);
+                GridCells[cellCoordinate.x + 1, cellCoordinate.y, cellCoordinate.z].CellDetails?.TryGetDetail<TDetail>(out eastDetail);
                 gridDetails.Add(eastDetail);
             }
             else { gridDetails.Add(null); }
@@ -412,7 +436,7 @@ namespace Venwin.Grid
             if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, 1)))
             {
                 TDetail? southDetail = null;
-                GridCells[cellCoordinate.x, cellCoordinate.z - 1].CellDetails?.TryGetDetail<TDetail>(out southDetail);
+                GridCells[cellCoordinate.x, cellCoordinate.y, cellCoordinate.z - 1].CellDetails?.TryGetDetail<TDetail>(out southDetail);
                 gridDetails.Add(southDetail);
             }
             else { gridDetails.Add(null); }
@@ -421,7 +445,7 @@ namespace Venwin.Grid
             if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, 1)))
             {
                 TDetail? westDetail = null;
-                GridCells[cellCoordinate.x - 1, cellCoordinate.z].CellDetails?.TryGetDetail<TDetail>(out westDetail);
+                GridCells[cellCoordinate.x - 1, cellCoordinate.y, cellCoordinate.z].CellDetails?.TryGetDetail<TDetail>(out westDetail);
                 gridDetails.Add(westDetail);
             }
             else { gridDetails.Add(null); }
@@ -445,7 +469,7 @@ namespace Venwin.Grid
                 return null;
             }
 
-            GridCell validCell = GridCells[neighboringCoordinate.x, neighboringCoordinate.z];
+            GridCell validCell = GridCells[neighboringCoordinate.x, neighboringCoordinate.y, neighboringCoordinate.z];
             
             if(!neighborCheck) { return validCell; }
 
@@ -478,7 +502,9 @@ namespace Venwin.Grid
         protected bool IsValidCellCoordinate(Vector3Int cellCoordinate)
         {
             // >= is done because the origin starts (0,0) not at (1,1)
-            if (cellCoordinate.x < 0 || cellCoordinate.x >= ColumnCount || cellCoordinate.z < 0 || cellCoordinate.z >= RowCount)
+            if (cellCoordinate.x < 0 || cellCoordinate.x >= ColumnCount ||
+                cellCoordinate.z < 0 || cellCoordinate.z >= RowCount ||
+                cellCoordinate.y < 0 || cellCoordinate.y >= YAxisMax)
             {
                 return false;
             }
@@ -497,16 +523,20 @@ namespace Venwin.Grid
         /// <param name="columnLength">The length along the columns</param>
         /// <param name="rowLength">The length along the rows</param>
         /// <returns>True if the dimensions would fit, else false.</returns>
-        protected bool DetermineIfWithinBounds(Vector3Int verifiedCellStart, int columnLength, int rowLength)
+        protected bool DetermineIfWithinBounds(Vector3Int verifiedCellStart, int columnLength, int yHeight, int rowLength)
         {
             // Head one step closer to 0, because we don't want to count the starting cell.
             columnLength = MathUtilities.MeanReversion(columnLength);
+            yHeight = MathUtilities.MeanReversion(yHeight);
             rowLength = MathUtilities.MeanReversion(rowLength);
+
 
             if (verifiedCellStart.x + columnLength < ColumnCount &&
                 verifiedCellStart.x + columnLength >= 0 &&
                 verifiedCellStart.z + rowLength < RowCount &&
-                verifiedCellStart.z + rowLength >= 0)
+                verifiedCellStart.z + rowLength >= 0 &&
+                verifiedCellStart.y + yHeight < YAxisMax &&
+                verifiedCellStart.y + yHeight >= 0)
             {
                 return true;
             }
@@ -529,27 +559,30 @@ namespace Venwin.Grid
 
                 Vector3Int cellCoords = GetCellCoordinatesFromWorldSpace(clickInfo.Point);
                 Debug.Log(cellCoords);
-                Debug.Log(GridCells[cellCoords.x, cellCoords.z].IsAvailable);
+                Debug.Log(GridCells[cellCoords.x, cellCoords.y, cellCoords.z].IsAvailable);
             }
         }
 
         /// <summary>
         /// Draws and prints debugging tools for grids if enabled.
         /// </summary>
-        public void DebugGrid()
+        /// <remarks>
+        /// Takes the 2D representation of the grid, meaning that it ignores the y-dimension.
+        /// </remarks>
+        public void DebugGridAs2D()
         {
             if (DrawDebug)
             {
-                DebugDrawGridLines();
+                DebugDraw2DGridLines();
             }
 
             if (PrintDebug)
             {
-                DebugCornerCoordinates();
+                Debug2DCornerCoordinates();
             }
         }
 
-        public void DebugDrawGridLines()
+        public void DebugDraw2DGridLines()
         {
             for (int row = 0; row < RowCount + 1; row++)
             {
@@ -562,7 +595,7 @@ namespace Venwin.Grid
             }
         }
 
-        public void DebugCornerCoordinates()
+        public void Debug2DCornerCoordinates()
         {
             Vector3 center = Transform.position;
             Vector3 halfSize = new Vector3(ScaledBounds.x / 2, 0, ScaledBounds.z / 2);

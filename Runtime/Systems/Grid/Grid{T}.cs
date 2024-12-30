@@ -12,7 +12,7 @@ namespace Venwin.Grid
         /// <summary>
         /// A casted version of <see cref="GridCells"/>.
         /// </summary>
-        public GridCellT[,] GenericGridCells { get; protected set; }
+        public GridCellT[,,] GenericGridCells { get; protected set; }
 
         /// <summary>
         /// Grid constructor that creates <see cref="GridCell{T}"/>s
@@ -21,10 +21,10 @@ namespace Venwin.Grid
         /// <param name="mesh">The mesh that the grid will use to calculate where to place the cells at.</param>
         /// <param name="cellSize">How large each cell will be.</param>
         /// <param name="gridLayer">The layer the mask is on.</param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer)
-            : this(transform, mesh, cellSize, gridLayer, null)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
+            : this(transform, mesh, cellSize, yAxisMax, gridLayer, null)
         {
-            DebugGrid();
+            DebugGridAs2D();
 
             CastGridCellsToGeneric();
         }
@@ -34,7 +34,7 @@ namespace Venwin.Grid
         /// </summary>
         /// <param name="grid">Grid to copy from.</param>
         public Grid(Grid<GridCellT, T> grid)
-            : this(grid.Transform, grid.GameObjectMesh, grid.CellSize, grid.GridLayer)
+            : this(grid.Transform, grid.GameObjectMesh, grid.CellSize, grid.YAxisMax, grid.GridLayer)
         {
             if (grid.CellCreationCallback != null)
             {
@@ -53,10 +53,10 @@ namespace Venwin.Grid
         /// Function that must take this grid, cell size, grid coordinate, and world space coordinate.<br/>
         /// Function returns a GridCell for the grid to use.
         /// </param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT>? cellCreationCallback)
-            : base(transform, mesh, cellSize, gridLayer, cellCreationCallback)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT>? cellCreationCallback)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, cellCreationCallback)
         {
-            DebugGrid();
+            DebugGridAs2D();
 
             CastGridCellsToGeneric();
         }
@@ -72,7 +72,7 @@ namespace Venwin.Grid
 
             if(cellCoordinates == InvalidCell) { return null; }
 
-            return GenericGridCells[cellCoordinates.x, cellCoordinates.z];
+            return GenericGridCells[cellCoordinates.x, cellCoordinates.y, cellCoordinates.z];
         }
 
         /// <summary>
@@ -80,14 +80,14 @@ namespace Venwin.Grid
         /// </summary>
         /// <param name="gridCoordinate">A coordinate that is on the grid.</param>
         /// <returns>A grid cell if the coordinate was valid.</returns>
-        public new GridCellT? GetCellFromGridCoordiantes(Vector3Int gridCoordinate)
+        public new GridCellT? GetCellFromGridCoordinates(Vector3Int gridCoordinate)
         {
             if (!IsValidCellCoordinate(gridCoordinate))
             {
                 return null;
             }
 
-            return GenericGridCells[gridCoordinate.x, gridCoordinate.z];
+            return GenericGridCells[gridCoordinate.x, gridCoordinate.y, gridCoordinate.z];
         }
 
         /// <summary>
@@ -108,25 +108,25 @@ namespace Venwin.Grid
             // North
             if(IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, 1)))
             {
-                gridElements.Add(GenericGridCells[cellCoordinate.z + 1, cellCoordinate.x].CurrentObject);
+                gridElements.Add(GenericGridCells[cellCoordinate.z + 1, cellCoordinate.y, cellCoordinate.x].CurrentObject);
             } else { gridElements.Add(null); }
 
             // East
             if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(1, 0, 0)))
             {
-                gridElements.Add(GenericGridCells[cellCoordinate.z, cellCoordinate.x + 1].CurrentObject);
+                gridElements.Add(GenericGridCells[cellCoordinate.z, cellCoordinate.y, cellCoordinate.x + 1].CurrentObject);
             } else { gridElements.Add(null); }
 
             // South
-            if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, 1)))
+            if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, -1)))
             {
-                gridElements.Add(GenericGridCells[cellCoordinate.z - 1, cellCoordinate.x].CurrentObject);
+                gridElements.Add(GenericGridCells[cellCoordinate.z - 1, cellCoordinate.y, cellCoordinate.x].CurrentObject);
             } else { gridElements.Add(null); }
 
             // West
-            if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(0, 0, 1)))
+            if (IsValidCellCoordinate(cellCoordinate + new Vector3Int(-1, 0, 0)))
             {
-                gridElements.Add(GenericGridCells[cellCoordinate.z, cellCoordinate.x - 1].CurrentObject);
+                gridElements.Add(GenericGridCells[cellCoordinate.z, cellCoordinate.y, cellCoordinate.x - 1].CurrentObject);
             } else { gridElements.Add(null); }
 
             return gridElements;
@@ -162,7 +162,7 @@ namespace Venwin.Grid
                 instantiatedGridObject.transform.parent = parent.transform;
             }
 
-            instantiatedGridObject.StartingCell = GetCellFromGridCoordiantes(startingCellCoordinate);
+            instantiatedGridObject.StartingCell = GetCellFromGridCoordinates(startingCellCoordinate);
 
             Action<GridCellT, T, Vector3Int> addAction = (GridCellT gridCell, T gridObject1, Vector3Int _) => { gridCell.AddObject(gridObject1); };
             ExecuteActionOnGridCellsBasedOnObjectAndOrientation(addAction, instantiatedGridObject, startingCellCoordinate);
@@ -275,12 +275,15 @@ namespace Venwin.Grid
                     case OriginPosition.BottomLeft:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for(int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCellT cell = GenericGridCells[startingCell.x + col, startingCell.z + row];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCellT cell = GenericGridCells[startingCell.x + col, startingCell.y + yAxis, startingCell.z + row];
 
-                                // Executes action
-                                action(cell, gridObject, new Vector3Int(col, 0, row));
+                                    // Executes action
+                                    action(cell, gridObject, new Vector3Int(col, 0, row));
+                                }
                             }
                         }
                         break;
@@ -288,11 +291,14 @@ namespace Venwin.Grid
                     case OriginPosition.TopLeft:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for (int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCellT cell = GenericGridCells[startingCell.x + row, startingCell.z - col];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCellT cell = GenericGridCells[startingCell.x + row, startingCell.y + yAxis, startingCell.z - col];
 
-                                action(cell, gridObject, new Vector3Int(col, 0, row));
+                                    action(cell, gridObject, new Vector3Int(col, 0, row));
+                                }
                             }
                         }
                         break;
@@ -300,11 +306,14 @@ namespace Venwin.Grid
                     case OriginPosition.TopRight:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for (int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCellT cell = GenericGridCells[startingCell.x - col, startingCell.z - row];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCellT cell = GenericGridCells[startingCell.x - col, startingCell.y + yAxis, startingCell.z - row];
 
-                                action(cell, gridObject, new Vector3Int(col, 0, row));
+                                    action(cell, gridObject, new Vector3Int(col, 0, row));
+                                }
                             }
                         }
                         break;
@@ -312,11 +321,14 @@ namespace Venwin.Grid
                     case OriginPosition.BottomRight:
                         for (int col = 0; col < dimensions.X; col++)
                         {
-                            for (int row = 0; row < dimensions.Z; row++)
+                            for (int yAxis = 0; yAxis < dimensions.Y; yAxis++)
                             {
-                                GridCellT cell = GenericGridCells[startingCell.x - row, startingCell.z + col];
+                                for (int row = 0; row < dimensions.Z; row++)
+                                {
+                                    GridCellT cell = GenericGridCells[startingCell.x - row, yAxis, startingCell.z + col];
 
-                                action(cell, gridObject, new Vector3Int(col, 0, row));
+                                    action(cell, gridObject, new Vector3Int(col, 0, row));
+                                }
                             }
                         }
                         break;
@@ -334,15 +346,18 @@ namespace Venwin.Grid
         /// </summary>
         protected override void CreateGridCells()
         {
-            GridCells = new GridCellT[ColumnCount, RowCount];
+            GridCells = new GridCellT[ColumnCount, YAxisMax, RowCount];
 
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, 0, row * CellSize + BottomLeftCorner.z);
-                    GridCells[col, row] =  CellCreationCallback == null ? new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates)
-                                                                        : CellCreationCallback(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    for (int row = 0; row < RowCount; row++)
+                    {
+                        Vector3 worldSpaceCoordinates = new(col * CellSize + BottomLeftCorner.x, 0, row * CellSize + BottomLeftCorner.z);
+                        GridCells[col, yAxis, row] = CellCreationCallback == null ? new GridCell<T>(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates)
+                                                                            : CellCreationCallback(this, CellSize, new Vector3Int(col, 0, row), worldSpaceCoordinates);
+                    }
                 }
             }
         }
@@ -351,14 +366,17 @@ namespace Venwin.Grid
         {
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    if (GridIsNavigatable)
+                    for (int row = 0; row < RowCount; row++)
                     {
-                        AssignCellNeighbors(GridCells[col, row]);
+                        if (GridIsNavigatable)
+                        {
+                            AssignCellNeighbors(GridCells[col, yAxis, row]);
+                        }
+
+                        GridCells[col, yAxis, row].IsNavigatable = GridIsNavigatable;
                     }
-                    
-                    GridCells[col, row].IsNavigatable = GridIsNavigatable;
                 }
             }
         }
@@ -368,13 +386,16 @@ namespace Venwin.Grid
         /// </summary>
         protected void CastGridCellsToGeneric()
         {
-            GenericGridCells = new GridCellT[ColumnCount, RowCount];
+            GenericGridCells = new GridCellT[ColumnCount, YAxisMax, RowCount];
 
             for (int col = 0; col < ColumnCount; col++)
             {
-                for (int row = 0; row < RowCount; row++)
+                for (int yAxis = 0; yAxis < YAxisMax; yAxis++)
                 {
-                    GenericGridCells[col, row] = (GridCellT)GridCells[col, row];
+                    for (int row = 0; row < RowCount; row++)
+                    {
+                        GenericGridCells[col, yAxis, row] = (GridCellT)GridCells[col, yAxis, row];
+                    }
                 }
             }
         }
@@ -385,24 +406,24 @@ namespace Venwin.Grid
         /// <param name="currentCell">The cell getting neighbors</param>
         protected virtual void AssignCellNeighbors(GridCell currentCell)
         {
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, 0, currentCell.GridCoordinates.z + 1)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 1)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.z + 1]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 1]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x + 1, 0, currentCell.GridCoordinates.z)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.z]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x + 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, 0, currentCell.GridCoordinates.z - 1)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z - 1)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.z - 1]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z - 1]);
             }
 
-            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x - 1, 0, currentCell.GridCoordinates.z)))
+            if (IsValidCellCoordinate(new Vector3Int(currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z)))
             {
-                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.z + 0]);
+                currentCell.AddNeighbor(GridCells[currentCell.GridCoordinates.x - 1, currentCell.GridCoordinates.y, currentCell.GridCoordinates.z + 0]);
             }
         }
     }
