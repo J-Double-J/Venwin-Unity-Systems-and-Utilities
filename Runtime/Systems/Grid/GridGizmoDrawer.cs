@@ -22,7 +22,7 @@ namespace Venwin.Grid
 
             if(!DrawDebug) { return; }
 
-            foreach(GridCell cell in Grid.GridCells)
+            foreach(GridCell cell in Grid.GridCells.Values)
             {
                 Vector3 halfExtents = new(cell.CellSize, cell.CellSize, cell.CellSize);
 

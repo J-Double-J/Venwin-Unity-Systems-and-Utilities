@@ -8,7 +8,7 @@ namespace Venwin.Grid
     {
         #region Declarations
 
-        [SerializeField] protected GridDimensions Dimensions;
+        [SerializeField] protected GridDimensions Dimensions = new(1, 1, 1);
         [SerializeField] protected GridObjectCellDetails cellDetails;
 
         #endregion Declarations

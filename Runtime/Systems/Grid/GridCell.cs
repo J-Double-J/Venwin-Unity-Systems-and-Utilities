@@ -46,6 +46,13 @@ namespace Venwin.Grid
         /// </summary>
         public Grid OwningGrid { get; }
 
+        public bool HasLayerTransitionDetails { get; private set; } = false;
+
+        /// <summary>
+        /// Gets details (if any), about how the cell creates a connection from its current cell to another layer.
+        /// </summary>
+        public LayerTransitionDetails? LayerTransitionDetails { get; protected set; }
+
         #region Navigation Properties
 
         /// <summary>
@@ -66,6 +73,18 @@ namespace Venwin.Grid
             GridCoordinates = coordinates;
             WorldSpaceCoordinates = worldSpaceCoordinates;
             CenterOfCellWorldSpace = new Vector3((float)(WorldSpaceCoordinates.x + CellSize / 2.0), 0, (float)(WorldSpaceCoordinates.z + CellSize / 2.0));
+        }
+
+        /// <summary>
+        /// A grid cell that is marked as unaccessible is one that is blocked and cannot be normally accessed.
+        /// </summary>
+        /// <example>
+        /// A cell sitting directly between two game objects.
+        /// </example>
+        protected virtual void MarkCellAsUnaccessible()
+        {
+            IsNavigatable = false;
+            IsAvailable = false;
         }
 
         #region Navigation
@@ -222,6 +241,26 @@ namespace Venwin.Grid
             }
 
             return uniqueObjects;
+        }
+
+        #endregion
+
+        #region Connection between Layers
+
+        /// <summary>
+        /// Gives the <see cref="GridCell"/> some details for its <see cref="LayerTransitionDetails"/>.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="enteringNeighbors"></param>
+        /// <param name="exitingNeighbors"></param>
+        /// <param name="layersClimbed"></param>
+        public void GiveLayerTransitionDetails(TransitionType type,
+                                                HashSet<GridCell> enteringNeighbors,
+                                                HashSet<GridCell> exitingNeighbors,
+                                                int layersClimbed = 1)
+        {
+            LayerTransitionDetails = new LayerTransitionDetails(type, enteringNeighbors, exitingNeighbors, layersClimbed, this);
+            HasLayerTransitionDetails = true;
         }
 
         #endregion
