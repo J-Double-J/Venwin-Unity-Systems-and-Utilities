@@ -1,3 +1,7 @@
+using System;
+using Unity.VisualScripting.YamlDotNet.Core.Tokens;
+using UnityEngine;
+
 namespace Venwin.Utilities
 {
     public static class MathUtilities
@@ -32,6 +36,40 @@ namespace Venwin.Utilities
 
             // Shouldn't be executed.
             return startingValue;
+        }
+
+        /// <summary>
+        /// Converts a <see cref="Vector3"/> into a <see cref="Vector3Int"/> while respecting thresholds to avoid flooring past.
+        /// </summary>
+        /// <remarks>
+        /// Typically a value like (2.3, -5.18e-18, 1.2) when converted to <see cref="Vector3Int"/> will be converted to (2, -1, 1) when it should probably<br/>
+        /// be more appropriately (2, 0, 1) due to floating point precision. This method fixes that.
+        /// </remarks>
+        /// <param name="vector"><see cref="Vector3"/> to convert into <see cref="Vector3Int"/>.</param>
+        /// <param name="floatingPointThreshold">Threshold for the floating point precision. If a value is past this threshold in relation to a rounded value, its floored.</param>
+        /// <returns><see cref="Vector3Int"/> that compensates for floating point errors.</returns>
+        public static Vector3Int VectorFloatToInt_WithErrorThreshold(this Vector3 vector, double floatingPointThreshold = 1e-10)
+        {
+            int x = FloatToInt_WithErrorThreshold(vector.x);
+            int y = FloatToInt_WithErrorThreshold(vector.y);
+            int z = FloatToInt_WithErrorThreshold(vector.z);
+
+            return new Vector3Int(x, y, z);
+        }
+
+        /// <summary>
+        /// Converts a float to an integer while keeping in mind the inaccuracies of floating point math.
+        /// </summary>
+        /// <example>
+        /// 1.99999999999 -> 2 <br/>
+        /// 1.98 -> 1
+        /// </example>
+        /// <param name="val"></param>
+        /// <param name="floatingPointThreshold"></param>
+        /// <returns></returns>
+        public static int FloatToInt_WithErrorThreshold(this float val, double floatingPointThreshold = 1e-10)
+        {
+            return Math.Abs(val - Math.Round(val)) < floatingPointThreshold ? (int)Math.Round(val) : Mathf.FloorToInt(val);
         }
     }
 

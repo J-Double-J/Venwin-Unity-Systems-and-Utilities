@@ -80,9 +80,10 @@ namespace Venwin.Grid
         /// <param name="yAxisMax">The maximum number of y-layers to the grid. Use 0 for a "one layer" or 2D grid.</param>
         /// <param name="gridLayer">Layer the grid resides on.</param>
         /// <param name="callback">Function that takes in parameters for a a grid cell to create custom cells.</param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback,
+            bool gridIsNavigatable = true)
         {
-            if(yAxisMax < 0)
+            if (yAxisMax < 0)
             {
                 throw new ArgumentException($"{nameof(Grid)} cannot have a {nameof(yAxisMax)} value of less than 0");
             }
@@ -92,18 +93,25 @@ namespace Venwin.Grid
             CellSize = cellSize;
             GridLayer = gridLayer;
             GridCells = new();
+            GridIsNavigatable = gridIsNavigatable;
 
             ScaledBounds = Vector3.Scale(mesh.bounds.size, transform.lossyScale);
             Vector3 center = transform.position;
-            Vector3 halfSize = new Vector3(ScaledBounds.x / 2, 0, ScaledBounds.z / 2); // GRID TODO: Does BottomLeft need to be projected?
+            Vector3 halfSize = new Vector3(ScaledBounds.x / 2, 0, ScaledBounds.z / 2);
             BottomLeftCorner = center - halfSize;
 
             ColumnCount = Mathf.FloorToInt(ScaledBounds.x / CellSize);
             RowCount = Mathf.FloorToInt(ScaledBounds.z / CellSize);
             YAxisMax = yAxisMax + 1;
-            
-            CellCreationCallback = callback;
 
+            CellCreationCallback = callback;
+        }
+
+        /// <summary>
+        /// Creates the grid cells and configures navigation if enabled.
+        /// </summary>
+        public virtual void InitializeInitialGrid()
+        {
             CreateGridCells();
 
             if (GridIsNavigatable)
@@ -142,11 +150,11 @@ namespace Venwin.Grid
     /// <returns>The cell's coordinates if its a valid point on the grid, else <see cref="Grid.InvalidCell"/>.</returns>
         public Vector3Int GetCellCoordinatesFromWorldSpace(Vector3 point)
         {
-            float roundedY = Mathf.Round(point.y * 10f) / 10f; // Round to the nearest tenth
+            float roundedY = Mathf.Round(point.y * 100f) / 100f; // Round to the hundreth tenth
 
-            int x = Mathf.FloorToInt(point.x - BottomLeftCorner.x) / CellSize;
-            int z = Mathf.FloorToInt(point.z - BottomLeftCorner.z) / CellSize;
-            int y = Mathf.FloorToInt(roundedY - BottomLeftCorner.y) / CellSize;
+            int x = MathUtilities.FloatToInt_WithErrorThreshold(point.x - BottomLeftCorner.x) / CellSize;
+            int z = MathUtilities.FloatToInt_WithErrorThreshold(point.z - BottomLeftCorner.z) / CellSize;
+            int y = MathUtilities.FloatToInt_WithErrorThreshold(roundedY - BottomLeftCorner.y) / CellSize;
 
             if (x < 0 || x >= ColumnCount || z < 0 || z >= RowCount || y < 0 || y >= YAxisMax)
             {

@@ -42,16 +42,17 @@ namespace Venwin.Grid
         public CellDetails? CellDetails { get; set; } = null;
 
         /// <summary>
+        /// Gets or sets details about any ramp that might be in this cell.
+        /// </summary>
+        public GridCellRampDetails? CellRampDetails { get; set; }
+
+        /// <summary>
         /// Gets the grid that this cell is on.
         /// </summary>
         public Grid OwningGrid { get; }
 
         public bool HasLayerTransitionDetails { get; private set; } = false;
 
-        /// <summary>
-        /// Gets details (if any), about how the cell creates a connection from its current cell to another layer.
-        /// </summary>
-        public LayerTransitionDetails? LayerTransitionDetails { get; protected set; }
 
         #region Navigation Properties
 
@@ -72,7 +73,7 @@ namespace Venwin.Grid
             CellSize = cellSize;
             GridCoordinates = coordinates;
             WorldSpaceCoordinates = worldSpaceCoordinates;
-            CenterOfCellWorldSpace = new Vector3((float)(WorldSpaceCoordinates.x + CellSize / 2.0), 0, (float)(WorldSpaceCoordinates.z + CellSize / 2.0));
+            CenterOfCellWorldSpace = new Vector3((float)(WorldSpaceCoordinates.x + CellSize / 2.0), WorldSpaceCoordinates.y, (float)(WorldSpaceCoordinates.z + CellSize / 2.0));
         }
 
         /// <summary>
@@ -241,26 +242,6 @@ namespace Venwin.Grid
             }
 
             return uniqueObjects;
-        }
-
-        #endregion
-
-        #region Connection between Layers
-
-        /// <summary>
-        /// Gives the <see cref="GridCell"/> some details for its <see cref="LayerTransitionDetails"/>.
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="enteringNeighbors"></param>
-        /// <param name="exitingNeighbors"></param>
-        /// <param name="layersClimbed"></param>
-        public void GiveLayerTransitionDetails(TransitionType type,
-                                                HashSet<GridCell> enteringNeighbors,
-                                                HashSet<GridCell> exitingNeighbors,
-                                                int layersClimbed = 1)
-        {
-            LayerTransitionDetails = new LayerTransitionDetails(type, enteringNeighbors, exitingNeighbors, layersClimbed, this);
-            HasLayerTransitionDetails = true;
         }
 
         #endregion
