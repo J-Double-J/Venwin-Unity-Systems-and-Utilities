@@ -150,7 +150,7 @@ namespace Venwin.Grid
             GridCell cell;
             if (CellCreationCallback == null)
             {
-                cell = new GridCell<T>(this, CellSize, gridCoord, worldSpaceCoordinates);
+                cell = new GridCellT(this, CellSize, gridCoord, worldSpaceCoordinates);
             }
             else
             {
