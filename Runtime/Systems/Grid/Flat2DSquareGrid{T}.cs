@@ -10,15 +10,15 @@ namespace Venwin.Grid
     /// Base class assumes square grid cells at the moment, but this will likely change.<br/>
     /// Implementors should use the Square Grid still to prevent breaking code changes in future.
     /// </remarks>
-    public class SquareGrid<GridCellT, T> : Grid<GridCellT, T> where GridCellT : GridCell<T> where T : GridObject
+    public class Flat2DSquareGrid<GridCellT, T> : Grid<GridCellT, T> where GridCellT : GridCell<T> where T : GridObject
     {
-        public SquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
-            : base(transform, mesh, cellSize, yAxisMax, gridLayer)
+        public Flat2DSquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, true)
         {
         }
 
-        public SquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT> cellCreationCallback)
-            : base(transform, mesh, cellSize, yAxisMax, gridLayer, cellCreationCallback)
+        public Flat2DSquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, bool isNavigatable, Func<Grid, int, Vector3Int, Vector3, GridCellT> cellCreationCallback)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, isNavigatable, cellCreationCallback)
         {
         }
 

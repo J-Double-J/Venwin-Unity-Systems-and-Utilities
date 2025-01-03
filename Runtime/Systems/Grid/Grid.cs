@@ -68,7 +68,7 @@ namespace Venwin.Grid
         #endregion
 
         public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
-            : this(transform, mesh, cellSize, yAxisMax, gridLayer, null)
+            : this(transform, mesh, cellSize, yAxisMax, gridLayer, callback: null)
         {
         }
 
@@ -81,8 +81,13 @@ namespace Venwin.Grid
         /// <param name="yAxisMax">The maximum number of y-layers to the grid. Use 0 for a "one layer" or 2D grid.</param>
         /// <param name="gridLayer">Layer the grid resides on.</param>
         /// <param name="callback">Function that takes in parameters for a a grid cell to create custom cells.</param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback,
-            bool gridIsNavigatable = true)
+        public Grid(Transform transform,
+            Mesh mesh,
+            int cellSize,
+            int yAxisMax,
+            LayerMask gridLayer,
+            bool gridIsNavigatable = true,
+            Func<Grid, int, Vector3Int, Vector3, GridCell>? callback = null)
         {
             if (yAxisMax < 0)
             {
@@ -111,6 +116,9 @@ namespace Venwin.Grid
         /// <summary>
         /// Creates the grid cells and configures navigation if enabled.
         /// </summary>
+        /// <remarks>
+        /// Must be called before a grid is used extensively, preferably in a derived class' constructor.
+        /// </remarks>
         public virtual void InitializeInitialGrid()
         {
             CreateGridCells();

@@ -9,7 +9,7 @@ namespace Venwin.Grid
     /// Base class assumes square grid cells at the moment, but this will likely change.<br/>
     /// Implementors should use the Square Grid still to prevent breaking code changes in future.
     /// </remarks>
-    public class SquareGrid : Grid
+    public class Flat2DSquareGrid : Grid
     {
         /// <summary>
         /// 
@@ -18,7 +18,7 @@ namespace Venwin.Grid
         /// <param name="mesh"></param>
         /// <param name="cellSize"></param>
         /// <param name="gridLayer"></param>
-        public SquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
+        public Flat2DSquareGrid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
             : base(transform, mesh, cellSize, yAxisMax, gridLayer)
         {
         }

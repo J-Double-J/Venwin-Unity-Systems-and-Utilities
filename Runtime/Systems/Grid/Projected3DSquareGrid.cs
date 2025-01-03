@@ -10,14 +10,14 @@ namespace Venwin.Grid
     /// <summary>
     /// Differs from the regular <see cref="Grid"/> in that it can detect the y-dimension automatically with the use of raycasting.
     /// </summary>
-    public class Projected3DGrid : Grid
+    public class Projected3DSquareGrid : Grid
     {
         /// <summary>
         /// Gets the details for how projection should work for this grid.
         /// </summary>
         protected ProjectionDetails ProjectionDetails { get; set; }
 
-        public Projected3DGrid(ProjectionDetails projectionDetails,
+        public Projected3DSquareGrid(ProjectionDetails projectionDetails,
             Transform transform,
             Mesh mesh,
             int cellSize,
@@ -25,7 +25,7 @@ namespace Venwin.Grid
             LayerMask gridLayer,
             bool isNavigatable,
             Func<Grid, int, Vector3Int, Vector3, GridCell>? callback = null)
-            : base(transform, mesh, cellSize, yAxisMax, gridLayer, callback, isNavigatable)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, isNavigatable, callback)
         {
             ProjectionDetails = projectionDetails;
         }
@@ -79,16 +79,9 @@ namespace Venwin.Grid
                     Vector3Int gridCoord = new(xzGridCoord.x, pointInt.y, xzGridCoord.z);
 
                     GridCell cell;
-                    if(CellCreationCallback == null)
-                    {
-                        cell = new GridCell(this, CellSize, gridCoord, worldSpaceCoordinates);
-                    }
-                    else
-                    {
-                        cell = CellCreationCallback(this, CellSize, gridCoord, worldSpaceCoordinates);
-                    }
+                    cell = CreateGridCell(worldSpaceCoordinates, gridCoord);
 
-                    if(hitInfo.normal != Vector3.up)
+                    if (hitInfo.normal != Vector3.up)
                     {
                         cell.CellRampDetails = GridCellRampDetails.CreateRampDetails(hitInfo, centerOfCellRayStart, CellSize, gridCoord);
                     }
@@ -135,15 +128,7 @@ namespace Venwin.Grid
 
                 Vector3Int gridCoord = new(xzGridCoord.x, pointInt.y, xzGridCoord.z);
 
-                GridCell gridCell;
-                if (CellCreationCallback == null)
-                {
-                    gridCell = new GridCell(this, CellSize, gridCoord, worldSpaceCoordinates);
-                }
-                else
-                {
-                    gridCell = CellCreationCallback(this, CellSize, gridCoord, worldSpaceCoordinates);
-                }
+                GridCell gridCell = CreateGridCell(worldSpaceCoordinates, gridCoord);
 
                 if(hit.normal != Vector3.up)
                 {
@@ -153,6 +138,30 @@ namespace Venwin.Grid
                 GridCells[gridCoord] = gridCell;
 
             }
+        }
+
+        /// <summary>
+        /// Creates the <see cref="GridCell"/> when a cell is determined to exist at a position.
+        /// </summary>
+        /// <remarks>
+        /// If a class derives from <see cref="Projected3DSquareGrid"/> and just needs to change what cells are created, this is the method to change.
+        /// </remarks>
+        /// <param name="worldSpaceCoordinates">World Space Coordinates of the cell.</param>
+        /// <param name="gridCoord">Grid Coordinates of the cell.</param>
+        /// <returns>The created <see cref="GridCell"/>.</returns>
+        protected virtual GridCell CreateGridCell(Vector3 worldSpaceCoordinates, Vector3Int gridCoord)
+        {
+            GridCell cell;
+            if (CellCreationCallback == null)
+            {
+                cell = new GridCell(this, CellSize, gridCoord, worldSpaceCoordinates);
+            }
+            else
+            {
+                cell = CellCreationCallback(this, CellSize, gridCoord, worldSpaceCoordinates);
+            }
+
+            return cell;
         }
 
         #endregion Cell Creation

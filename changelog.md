@@ -1,3 +1,32 @@
+## [Version 1.4] - 2025-01-03
+
+Grid System was upgraded to work in the Y-dimension. There are now two kinds of grids:
+
+- 2D Grid
+	- Mostly unchanged expect they can technically handle some Y-elevation changes now, such as the surface not being on y-axis 0. Logic still is primarily around x-z handling.
+- 3D Grid
+	- Works in the 3rd dimensions
+	- Not feature complete yet (missing for example rotating about the x or z axis for grid objects and details)
+
+### Changed
+
+- Grid
+	- Y Axis handling is now supported
+	- Grids no longer are initialized for cell creation in the base class. Derived classes can now grab params from thier constructors to use in their overrides first.
+		- This does mean that `InitializeInitialGrid()` will need to be called in a derived constructor or after construction so that a grid will be built.
+	- Grids that work in 2D space are specified in thier class names, as well as 3D ones
+	- `Grid.GridCells` is no longer n-dimensional arrays. It is now a dictionary with a GridCoord lookup. This allows cells to be ommitted easier and is more space efficient especially in situations in 3D where many cells may not exist.
+
+### Added
+- Grid
+	- You can now "project" a grid onto a surface below and it will be converted to a 3D grid based on the surfaces hit.
+	- Automated Ramp Detection for pathing
+
+### Fixed
+
+- Navigation on grids were not able to changed in constructor and would always build the cells as navigatable first.
+- Various typos that were existing for a while that affected grid logic.
+
 ## [Version 1.3.3] - 2024-12-26
 
 ### Added

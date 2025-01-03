@@ -21,12 +21,10 @@ namespace Venwin.Grid
         /// <param name="mesh">The mesh that the grid will use to calculate where to place the cells at.</param>
         /// <param name="cellSize">How large each cell will be.</param>
         /// <param name="gridLayer">The layer the mask is on.</param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer)
-            : this(transform, mesh, cellSize, yAxisMax, gridLayer, null)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, bool isNavigatable)
+            : this(transform, mesh, cellSize, yAxisMax, gridLayer, isNavigatable, null)
         {
             DebugGridAs2D();
-
-            CastGridCellsToGeneric();
         }
 
         /// <summary>
@@ -34,7 +32,7 @@ namespace Venwin.Grid
         /// </summary>
         /// <param name="grid">Grid to copy from.</param>
         public Grid(Grid<GridCellT, T> grid)
-            : this(grid.Transform, grid.GameObjectMesh, grid.CellSize, grid.YAxisMax, grid.GridLayer)
+            : this(grid.Transform, grid.GameObjectMesh, grid.CellSize, grid.YAxisMax, grid.GridLayer, grid.GridIsNavigatable)
         {
             if (grid.CellCreationCallback != null)
             {
@@ -53,10 +51,16 @@ namespace Venwin.Grid
         /// Function that must take this grid, cell size, grid coordinate, and world space coordinate.<br/>
         /// Function returns a GridCell for the grid to use.
         /// </param>
-        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCellT>? cellCreationCallback)
-            : base(transform, mesh, cellSize, yAxisMax, gridLayer, cellCreationCallback)
+        public Grid(Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, bool isNavigatable, Func<Grid, int, Vector3Int, Vector3, GridCellT>? cellCreationCallback)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, isNavigatable, cellCreationCallback)
         {
             DebugGridAs2D();
+        }
+
+        /// <inheritdoc/>
+        public override void InitializeInitialGrid()
+        {
+            base.InitializeInitialGrid();
 
             CastGridCellsToGeneric();
         }
