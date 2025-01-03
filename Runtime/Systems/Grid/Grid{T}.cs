@@ -420,8 +420,10 @@ namespace Venwin.Grid
                     for (int row = 0; row < RowCount; row++)
                     {
                         Vector3Int gridCoord = new(col, yAxis, row);
-
-                        GenericGridCells[gridCoord] = (GridCellT)GridCells[gridCoord];
+                        if(GridCells.ContainsKey(gridCoord))
+                        {
+                            GenericGridCells[gridCoord] = (GridCellT)GridCells[gridCoord];
+                        }
                     }
                 }
             }
