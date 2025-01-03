@@ -2,7 +2,7 @@ using System;
 
 using UnityEngine;
 
-namespace Venwin
+namespace Venwin.Grid
 {
     public class GridCellRampDetails
     {
@@ -10,14 +10,29 @@ namespace Venwin
         /// The direction in relation to the grid that the higher end of the ramp is.
         /// </summary>
         /// <remarks>
-        /// So if the value is <see cref="RampDirection.East"/> then the upper end of the ramp is closer to (1,0,0) than (0,0,0)
+        /// So if the value is <see cref="GridDirection.East"/> then the upper end of the ramp is closer to (1,0,0) than (0,0,0). <br/>
+        /// It then also means that to go up one must travel east.
         /// </remarks>
-        public RampDirection UpperRampDirection { get; private set; }
+        public GridDirection UpperRampDirection { get; private set; }
 
         /// <summary>
         /// The direction in relation to the grid that the lower end of the ramp is.
         /// </summary>
-        public RampDirection DownRampDirection { get; private set; }
+        /// <remarks>
+        /// So if the value is <see cref="GridDirection.West"/> then the lower end of the ramp is closer to (0,0,0) than (1,0,0). <br/>
+        /// It then also means that to go down one must travel west.
+        /// </remarks>
+        public GridDirection DownRampDirection { get; private set; }
+
+        /// <summary>
+        /// The level that the upper ramp is moving towards
+        /// </summary>
+        public int YIndexUpperRamp { get; private set; }
+
+        /// <summary>
+        /// The leval that the lower ramp is moving towards.
+        /// </summary>
+        public int YIndexLowerRamp { get; private set; }
 
         private GridCellRampDetails() { }
 
@@ -38,11 +53,12 @@ namespace Venwin
         /// <param name="hitInfoAtCellXZCenter"></param>
         /// <param name="rayCastOrigin"></param>
         /// <param name="cellSize"></param>
+        /// <param name="gridCoord"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException">Thrown if trying to create ramp data from a flat surface.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the expectations between the raycast normals and the elevation changes are broken.<br/>
         /// Won't be thrown if the requirements are followed.</exception>
-        public static GridCellRampDetails CreateRampDetails(RaycastHit hitInfoAtCellXZCenter, Vector3 rayCastOrigin, int cellSize)
+        public static GridCellRampDetails CreateRampDetails(RaycastHit hitInfoAtCellXZCenter, Vector3 rayCastOrigin, int cellSize, Vector3Int gridCoord)
         {
             GridCellRampDetails gridCellRampDetails = new GridCellRampDetails();
             Vector3 norm = hitInfoAtCellXZCenter.normal;
@@ -52,6 +68,9 @@ namespace Venwin
             Vector3 zStepAngleCheck = Vector3.zero;
             float step = cellSize / 4f;
             bool determinedAngle = false;
+
+            gridCellRampDetails.YIndexUpperRamp = gridCoord.y + cellSize;
+            gridCellRampDetails.YIndexLowerRamp = gridCoord.y;
 
             xStepAngleCheck = new(rayCastOrigin.x + step, Mathf.Floor(hitInfoAtCellXZCenter.point.y) + cellSize, rayCastOrigin.z);
             zStepAngleCheck = new(rayCastOrigin.x, Mathf.Floor(hitInfoAtCellXZCenter.point.y) + cellSize, rayCastOrigin.z + step);
@@ -70,12 +89,12 @@ namespace Venwin
                 if((float)Math.Round(raycastHit.Value.point.y, 1) > (float)Math.Round(hitInfoAtCellXZCenter.point.y, 1))
                 {
                     determinedAngle = true;
-                    gridCellRampDetails.SetHigherEnd(RampDirection.East);
+                    gridCellRampDetails.SetHigherEnd(GridDirection.East);
                 }
                 else if((float)Math.Round(raycastHit.Value.point.y, 1) < (float)Math.Round(hitInfoAtCellXZCenter.point.y, 1))
                 {
                     determinedAngle = true;
-                    gridCellRampDetails.SetHigherEnd(RampDirection.West);
+                    gridCellRampDetails.SetHigherEnd(GridDirection.West);
                 }
             }
 
@@ -93,14 +112,14 @@ namespace Venwin
                 if ((float)Math.Round(raycastHit.Value.point.y, 1) > (float)Math.Round(hitInfoAtCellXZCenter.point.y, 1))
                 {
                     determinedAngle = true;
-                    gridCellRampDetails.SetHigherEnd(RampDirection.North);
+                    gridCellRampDetails.SetHigherEnd(GridDirection.North);
                     return gridCellRampDetails;
 
                 }
                 else if ((float)Math.Round(raycastHit.Value.point.y, 1) < (float)Math.Round(hitInfoAtCellXZCenter.point.y, 1))
                 {
                     determinedAngle = true;
-                    gridCellRampDetails.SetHigherEnd(RampDirection.South);
+                    gridCellRampDetails.SetHigherEnd(GridDirection.South);
                     return gridCellRampDetails;
                 }
             }
@@ -141,37 +160,25 @@ namespace Venwin
         /// Sets the end that is higher and then sets the opposite for the lower end.
         /// </summary>
         /// <param name="rampDirectionOnHigherSide">Direction that is on the higher end of the ramp.</param>
-        private void SetHigherEnd(RampDirection rampDirectionOnHigherSide)
+        private void SetHigherEnd(GridDirection rampDirectionOnHigherSide)
         {
             UpperRampDirection = rampDirectionOnHigherSide;
             
             switch(rampDirectionOnHigherSide)
             {
-                case RampDirection.North:
-                    DownRampDirection = RampDirection.South;
+                case GridDirection.North:
+                    DownRampDirection = GridDirection.South;
                     break;
-                case RampDirection.East:
-                    DownRampDirection = RampDirection.West;
+                case GridDirection.East:
+                    DownRampDirection = GridDirection.West;
                     break;
-                case RampDirection.West:
-                    DownRampDirection = RampDirection.East;
+                case GridDirection.West:
+                    DownRampDirection = GridDirection.East;
                     break;
-                case RampDirection.South:
-                    DownRampDirection = RampDirection.North;
+                case GridDirection.South:
+                    DownRampDirection = GridDirection.North;
                     break;
             }
         }
-
-    }
-
-    /// <summary>
-    /// The side that is considered to be 
-    /// </summary>
-    public enum RampDirection
-    {
-        North,
-        East,
-        South,
-        West
     }
 }

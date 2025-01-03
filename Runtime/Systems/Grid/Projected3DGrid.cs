@@ -17,11 +17,20 @@ namespace Venwin.Grid
         /// </summary>
         protected ProjectionDetails ProjectionDetails { get; set; }
 
-        public Projected3DGrid(ProjectionDetails projectionDetails, Transform transform, Mesh mesh, int cellSize, int yAxisMax, LayerMask gridLayer, Func<Grid, int, Vector3Int, Vector3, GridCell>? callback)
-            : base(transform, mesh, cellSize, yAxisMax, gridLayer, callback, false)
+        public Projected3DGrid(ProjectionDetails projectionDetails,
+            Transform transform,
+            Mesh mesh,
+            int cellSize,
+            int yAxisMax,
+            LayerMask gridLayer,
+            bool isNavigatable,
+            Func<Grid, int, Vector3Int, Vector3, GridCell>? callback = null)
+            : base(transform, mesh, cellSize, yAxisMax, gridLayer, callback, isNavigatable)
         {
             ProjectionDetails = projectionDetails;
         }
+
+        #region Cell Creation
 
         /// <inheritdoc/>
         protected override void CreateGridCells()
@@ -81,7 +90,7 @@ namespace Venwin.Grid
 
                     if(hitInfo.normal != Vector3.up)
                     {
-                        cell.CellRampDetails = GridCellRampDetails.CreateRampDetails(hitInfo, centerOfCellRayStart, CellSize);
+                        cell.CellRampDetails = GridCellRampDetails.CreateRampDetails(hitInfo, centerOfCellRayStart, CellSize, gridCoord);
                     }
 
                     GridCells[gridCoord] = cell;
@@ -138,7 +147,7 @@ namespace Venwin.Grid
 
                 if(hit.normal != Vector3.up)
                 {
-                    gridCell.CellRampDetails = GridCellRampDetails.CreateRampDetails(hit, centerOfCellRayStart, CellSize);
+                    gridCell.CellRampDetails = GridCellRampDetails.CreateRampDetails(hit, centerOfCellRayStart, CellSize, gridCoord);
                 }
 
                 GridCells[gridCoord] = gridCell;
@@ -146,10 +155,13 @@ namespace Venwin.Grid
             }
         }
 
+        #endregion Cell Creation
+
+        #region Cell Navigation
+
         /// <inheritdoc/>
         protected override void ConfigureGridCellsForNavigation()
         {
-            throw new NotImplementedException("Ensure the other stuff is complete dummy!");
             for (int col = 0; col < ColumnCount; col++)
             {
                 for(int yAxis = 0; yAxis < YAxisMax; yAxis++)
@@ -160,9 +172,152 @@ namespace Venwin.Grid
                         {
                             continue;
                         }
+
+                        if(cell.CellRampDetails == null)
+                        {
+                            AssignCellNeighborsForNonRamps(cell);
+                        }
+                        else
+                        {
+                            AssignCellNeighborsForRamps(cell);
+                        }
                     }
                 }
             }
         }
+
+        /// <summary>
+        /// Finds the <paramref name="currentCell"/>'s neighbors and makes it aware of them.
+        /// </summary>
+        /// <param name="currentCell">The cell getting neighbors</param>
+        protected virtual void AssignCellNeighborsForNonRamps(GridCell currentCell)
+        {
+            // North
+            CheckForNeighborEligibilityAtGridCoord(currentCell, GridDirection.North);
+            
+            // East
+            CheckForNeighborEligibilityAtGridCoord(currentCell, GridDirection.East);
+            
+            // South
+            CheckForNeighborEligibilityAtGridCoord(currentCell, GridDirection.South);
+            
+            // West
+            CheckForNeighborEligibilityAtGridCoord(currentCell, GridDirection.West);
+        }
+
+        protected virtual void CheckForNeighborEligibilityAtGridCoord(GridCell currentCell, GridDirection gridDirection)
+        {
+            if (currentCell.CellRampDetails != null)
+            {
+                throw new InvalidOperationException($"Cannot do neighbor eligibility checks using ramp logics when the current cell doesn't have a ramp. " +
+                    $"Use {nameof(CheckForNeighborEligibilityAtGridCoord_Ramp)} instead.");
+            }
+
+            Vector3Int gridCoord = currentCell.GridCoordinates + gridDirection.GetVectorFromDirection();
+            if (IsValidCellCoordinate(gridCoord))
+            {
+                GridCell eligibleCell = GridCells[gridCoord];
+                
+                // If the eligible cell is a ramp that is not oriented in the direction we are approaching from, its not a neighbor.
+                if(eligibleCell.CellRampDetails != null && eligibleCell.CellRampDetails.UpperRampDirection != gridDirection)
+                {
+                    return;
+                }
+
+                currentCell.AddNeighbor(eligibleCell);
+            }
+            else
+            {
+                CheckForLowerRampNeighbor(currentCell, gridCoord, gridDirection);
+            }
+        }
+
+        /// <summary>
+        /// Assigns neighbors for ramps.
+        /// </summary>
+        /// <remarks>
+        /// Default implementation treat ramps as one directional cells that don't allow "turning" off the ramp until completely off it.
+        /// </remarks>
+        /// <example>
+        /// R - Ramp
+        /// O - Neighbor
+        /// X - Non-neighbor
+        /// 
+        /// XXX      XOX
+        /// ORO  OR  XRX
+        /// XXX      XOX
+        /// </example>
+        /// <param name="currentCell">The cell being evaluated</param>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="currentCell"/> is not a ramp.</exception>
+        protected virtual void AssignCellNeighborsForRamps(GridCell currentCell)
+        {
+            if(currentCell.CellRampDetails == null)
+            {
+                throw new ArgumentException($"Grid Cell must have populated {nameof(GridCellRampDetails)} in order to create neighbors with ramp logic.");
+            }
+
+            CheckForNeighborEligibilityAtGridCoord_Ramp(currentCell, currentCell.CellRampDetails.UpperRampDirection, true);
+            CheckForNeighborEligibilityAtGridCoord_Ramp(currentCell, currentCell.CellRampDetails.DownRampDirection, false);
+        }
+
+        /// <summary>
+        /// Checks if a neighbor is eligible for a grid cell.
+        /// </summary>
+        /// <remarks>
+        /// This logic is executed for grid cells with ramps.
+        /// </remarks>
+        /// <param name="currentCell"></param>
+        /// <param name="gridDirection">Direction to search in.</param>
+        /// <param name="searchUpperDirection">If true, uses logic in the upperwards direction, else uses the downward direction</param>
+        protected virtual void CheckForNeighborEligibilityAtGridCoord_Ramp(GridCell currentCell, GridDirection gridDirection, bool searchUpperDirection)
+        {
+            if (currentCell.CellRampDetails == null)
+            {
+                throw new InvalidOperationException("Cannot do neighbor eligibility checks using ramp logics when the current cell doesn't have a ramp. " +
+                    $"Use {nameof(CheckForNeighborEligibilityAtGridCoord)} instead.");
+            }
+
+            Vector3Int gridCoord = searchUpperDirection ? currentCell.GridCoordinates + gridDirection.GetVectorFromDirection() + Vector3Int.up
+                                                        : currentCell.GridCoordinates + gridDirection.GetVectorFromDirection();
+            if (IsValidCellCoordinate(gridCoord))
+            {
+                GridCell eligibleCell = GridCells[gridCoord];
+
+                // If the eligible cell is a ramp that is not oriented in the direction we are approaching from, its not a neighbor.
+                if (eligibleCell.CellRampDetails != null && eligibleCell.CellRampDetails.UpperRampDirection != gridDirection)
+                {
+                    return;
+                }
+
+                currentCell.AddNeighbor(eligibleCell);
+            }
+            else
+            {
+                CheckForLowerRampNeighbor(currentCell, gridCoord, gridDirection);
+            }
+        }
+
+        /// <summary>
+        /// Checks if a grid ramp exists on a lower y-index and adds that as a neighbor.
+        /// </summary>
+        /// <param name="currentCell">The current cell having neighbors assigned to.</param>
+        /// <param name="gridCellOffsetOfCurrent">A position that has been searched for a neighbor that needs to be searched below of.</param>
+        /// <param name="gridDirection">Direction of approach, used to see if its going the same direction downwards.</param>
+        protected virtual void CheckForLowerRampNeighbor(GridCell currentCell, Vector3Int gridCellOffsetOfCurrent, GridDirection gridDirection)
+        {
+            // If a ramp is sloping down into another ramp, we need to look further down rather than the current ramps lower point.
+            // The current ramp's lower point is even with the floor, but other ramps are likely one step lower.
+            Vector3Int downAndOffset = gridCellOffsetOfCurrent + new Vector3Int(0, -1, 0);
+
+            if (IsValidCellCoordinate(downAndOffset))
+            {
+                if (GridCells[downAndOffset].CellRampDetails != null && GridCells[downAndOffset].CellRampDetails!.DownRampDirection == gridDirection)
+                {
+                    currentCell.AddNeighbor(GridCells[downAndOffset]);
+                }
+            }
+        }
+
+        #endregion Cell Navigation
     }
 }

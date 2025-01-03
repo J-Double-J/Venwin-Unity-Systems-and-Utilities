@@ -1,3 +1,4 @@
+using PlasticPipe.PlasticProtocol.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -531,10 +532,12 @@ namespace Venwin.Grid
                 cellCoordinate.z < 0 || cellCoordinate.z >= RowCount ||
                 cellCoordinate.y < 0 || cellCoordinate.y >= YAxisMax)
             {
-                if(!GridCells.ContainsKey(cellCoordinate))
-                {
-                    return false;
-                }
+                return false;   
+            }
+
+            if (!GridCells.ContainsKey(cellCoordinate))
+            {
+                return false;
             }
 
             return true;
