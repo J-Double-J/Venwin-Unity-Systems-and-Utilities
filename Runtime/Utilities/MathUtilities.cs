@@ -48,7 +48,7 @@ namespace Venwin.Utilities
         /// <param name="vector"><see cref="Vector3"/> to convert into <see cref="Vector3Int"/>.</param>
         /// <param name="floatingPointThreshold">Threshold for the floating point precision. If a value is past this threshold in relation to a rounded value, its floored.</param>
         /// <returns><see cref="Vector3Int"/> that compensates for floating point errors.</returns>
-        public static Vector3Int VectorFloatToInt_WithErrorThreshold(this Vector3 vector, double floatingPointThreshold = 1e-10)
+        public static Vector3Int VectorFloatToInt_WithErrorThreshold(this Vector3 vector, double floatingPointThreshold = 1e-3)
         {
             int x = FloatToInt_WithErrorThreshold(vector.x);
             int y = FloatToInt_WithErrorThreshold(vector.y);
@@ -64,10 +64,10 @@ namespace Venwin.Utilities
         /// 1.99999999999 -> 2 <br/>
         /// 1.98 -> 1
         /// </example>
-        /// <param name="val"></param>
-        /// <param name="floatingPointThreshold"></param>
-        /// <returns></returns>
-        public static int FloatToInt_WithErrorThreshold(this float val, double floatingPointThreshold = 1e-10)
+        /// <param name="val">Value to convert to int.</param>
+        /// <param name="floatingPointThreshold">Threshold for how close a value needs to be to the rounded value for that to be used over a floored number.</param>
+        /// <returns>An integer that is a closer representation of a float.</returns>
+        public static int FloatToInt_WithErrorThreshold(this float val, double floatingPointThreshold = 1e-3)
         {
             return Math.Abs(val - Math.Round(val)) < floatingPointThreshold ? (int)Math.Round(val) : Mathf.FloorToInt(val);
         }
